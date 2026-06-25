@@ -1,53 +1,201 @@
-![MeXiCOSINT Banner](mexsint.png)
+<p align="center">
+  <img src="mexsint.png" alt="MeXiCOSINT Banner" width="850">
+</p>
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-![OSINT](https://img.shields.io/badge/OSINT-Mexico-red.svg)
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python">
+  <img src="https://img.shields.io/badge/Licencia-MIT-green.svg" alt="Licencia">
+  <img src="https://img.shields.io/badge/OSINT-México-red.svg" alt="OSINT México">
+  <img src="https://img.shields.io/badge/Estado-Beta-orange.svg" alt="Estado Beta">
+</p>
 
-## Tabla de Contenidos
-- [Instalación](#instalación)
-- [Uso](#uso)
-- [Módulos](#módulos)
-- [Dependencias](#dependencias)
-- [Nota](#nota)
+<h1 align="center">MeXiCOSINT</h1>
 
-# MeXiCOSINT
+<p align="center">
+  Herramienta OSINT enfocada en análisis, validación, enriquecimiento y reportes de números telefónicos mexicanos.
+</p>
 
-Herramienta de OSINT para numeros telefonicos Mexicanos.
+---
 
-## Instalacion
+## Descripción
 
-git clone https://github.com/KiMiGuel/MeXiCOSINT.git
+**MeXiCOSINT** es una herramienta de OSINT desarrollada en Python y enfocada en números telefónicos mexicanos.
 
-cd MeXiCOSINT
+La herramienta puede validar números, analizar formatos mexicanos, consultar fuentes opcionales mediante API, procesar metadatos disponibles y generar resultados útiles para investigación autorizada.
 
-python3 -m venv venv
+> Este proyecto está en fase beta. Los resultados deben tratarse como indicadores OSINT, no como evidencia absoluta.
 
-source venv/bin/activate
+---
 
-pip install -r requirements.txt
+## Características
 
-## Ejecutar con launcher
+- Validación de números telefónicos mexicanos
+- Formato nacional e internacional
+- Análisis local de números mexicanos
+- Enriquecimiento opcional mediante APIs externas
+- Procesamiento relacionado con IFT/SNS
+- Soporte para módulo QuienHabla.mx
+- Launcher para ejecutar la herramienta sin escribir el nombre completo del script
+- Configuración local de API keys
+- Soporte para reportes o salidas generadas según la versión
 
-Después de instalar las dependencias, puedes ejecutar MeXiCOSINT con:
+---
+
+## Estructura del repositorio
+
+```text
+MeXiCOSINT/
+├── bin/
+│   └── mexicosint
+├── data/
+├── docs/
+│   ├── INSTALL.md
+│   ├── USAGE.md
+│   └── CONFIG.md
+├── modules/
+│   ├── ift_sns.py
+│   ├── local_parser.py
+│   └── quienhabla.py
+├── mexicosint_v2.2.5.py
+├── requirements.txt
+├── .gitignore
+├── LICENSE
+└── README.md
+```
+
+---
+
+## Instalación
+
+Clona el repositorio:
 
 ```bash
-bash bin/mexicosint
+git clone https://github.com/KiMiGuel/MeXiCOSINT.git
+```
+
+Entra a la carpeta del proyecto:
+
+```bash
+cd MeXiCOSINT
+```
+
+Crea un entorno virtual:
+
+```bash
+python3 -m venv venv
+```
+
+Activa el entorno virtual:
+
+```bash
+source venv/bin/activate
+```
+
+Instala las dependencias:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
 
 ## Uso
 
-python3 bash bin/mexicosint
+Ejecuta MeXiCOSINT usando el launcher:
 
-## Modulos
+```bash
+bash bin/mexicosint
+```
 
-- local_parser.py - Validacion y parsing de numeros mexicanos
-- quienhabla.py - Integracion con QuienHabla.mx
-- ift_sns.py - Procesamiento de datos IFT/SNS
+Esto evita tener que escribir manualmente el nombre completo del archivo principal de Python.
 
-## Dependencias
+También puedes ejecutar el script principal directamente:
 
-requests, beautifulsoup4, phonenumbers, python-dotenv, lxml
+```bash
+python3 mexicosint_v2.2.5.py
+```
 
-## Nota
+---
 
-No subas tu .env al repositorio.
+## Documentación
+
+| Guía | Descripción |
+|---|---|
+| [Guía de instalación](docs/INSTALL.md) | Instrucciones de instalación para Kali, Debian, Ubuntu y sistemas similares |
+| [Guía de uso](docs/USAGE.md) | Uso básico y notas de ejecución |
+| [Guía de configuración](docs/CONFIG.md) | Configuración local y manejo de API keys |
+
+---
+
+## APIs opcionales
+
+Algunas funciones pueden depender de API keys externas.
+
+| Servicio | Función |
+|---|---|
+| AbstractAPI | Validación y enriquecimiento de números telefónicos |
+| NumVerify | Validación secundaria de números |
+| Shodan | Enriquecimiento opcional relacionado con servicios expuestos |
+| IPInfo | Enriquecimiento de metadatos IP |
+| IP2Location | Enriquecimiento de metadatos IP |
+| OpenCage | Geocodificación y soporte para mapas |
+
+Las API keys deben mantenerse en tu entorno local. No las subas a GitHub.
+
+---
+
+## Seguridad
+
+No subas archivos como:
+
+```text
+.env
+*.env
+config.json
+secrets.json
+keys.json
+.mx_osint_config.json
+```
+
+Ruta local recomendada para configuración:
+
+```text
+~/.mx_osint_config.json
+```
+
+Permisos recomendados:
+
+```bash
+chmod 600 ~/.mx_osint_config.json
+```
+
+---
+
+## Advertencia
+
+**MeXiCOSINT** está diseñado para investigación autorizada, autoauditoría y flujos educativos de OSINT.
+
+No uses esta herramienta para acoso, doxxing, fraude, amenazas o actividades no autorizadas.
+
+La herramienta no garantiza identidad, ubicación exacta, propiedad ni atribución definitiva de un número telefónico.
+
+---
+
+## Estado del proyecto
+
+Este proyecto está en desarrollo activo.
+
+Funciones planeadas:
+
+- Empaquetado instalable
+- Comando global `mexicosint`
+- Publicación de releases en GitHub
+- Paquete `.deb` para instalación local con `apt`
+- Mejoras en documentación
+- Más pruebas y validaciones internas
+
+---
+
+## Licencia
+
+Este proyecto se publica bajo la licencia incluida en este repositorio.
