@@ -8,4 +8,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$REPO_ROOT" || exit 1
 
-python3 "$REPO_ROOT/mexicosint_v2.2.5.py" "$@"
+PYTHON_BIN="$REPO_ROOT/venv/bin/python"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="python3"
+fi
+
+PYTHONPATH="$REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m mexicosint "$@"

@@ -37,7 +37,7 @@ bash bin/mexicosint
 También puedes ejecutar directamente el archivo principal:
 
 ```bash
-python3 mexicosint_v2.2.5.py
+PYTHONPATH=src python3 -m mexicosint
 ```
 
 ---
@@ -169,7 +169,7 @@ Si la versión incluye un modo de prueba, puede ejecutarse con una bandera espec
 Ejemplo:
 
 ```bash
-python3 mexicosint_v2.2.5.py --dummy-test
+PYTHONPATH=src python3 -m mexicosint --dummy-test
 ```
 
 Este modo está pensado para desarrollo local.

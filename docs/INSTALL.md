@@ -88,7 +88,7 @@ bash bin/mexicosint
 También puedes ejecutar directamente el archivo principal:
 
 ```bash
-python3 mexicosint_v2.2.5.py
+PYTHONPATH=src python3 -m mexicosint
 ```
 
 ---

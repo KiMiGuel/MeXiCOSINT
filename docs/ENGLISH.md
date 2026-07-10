@@ -37,17 +37,20 @@ The tool can validate numbers, parse Mexican phone formats, use optional externa
 MeXiCOSINT/
 ├── bin/
 │   └── mexicosint
-├── data/
 ├── docs/
 │   ├── INSTALL.md
 │   ├── USAGE.md
 │   ├── CONFIG.md
 │   └── ENGLISH.md
-├── modules/
-│   ├── ift_sns.py
-│   ├── local_parser.py
-│   └── quienhabla.py
-├── mexicosint_v2.2.5.py
+├── src/
+│   └── mexicosint/
+│       ├── cli.py
+│       ├── main.py
+│       ├── data/
+│       ├── modules/
+│       ├── services/
+│       └── utils/
+├── pyproject.toml
 ├── requirements.txt
 ├── .gitignore
 ├── LICENSE
@@ -155,7 +158,7 @@ This avoids manually typing the full Python filename.
 You can also run the main script directly:
 
 ```bash
-python3 mexicosint_v2.2.5.py
+PYTHONPATH=src python3 -m mexicosint
 ```
 
 ---
@@ -471,7 +474,7 @@ If the current version includes a development or dummy test mode, it may be exec
 Example:
 
 ```bash
-python3 mexicosint_v2.2.5.py --dummy-test
+PYTHONPATH=src python3 -m mexicosint --dummy-test
 ```
 
 This mode is intended for local development and testing.

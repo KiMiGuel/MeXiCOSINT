@@ -47,16 +47,27 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 MeXiCOSINT/
 ├── bin/
 │   └── mexicosint
-├── data/
 ├── docs/
 │   ├── INSTALL.md
 │   ├── USAGE.md
 │   └── CONFIG.md
-├── modules/
-│   ├── ift_sns.py
-│   ├── local_parser.py
-│   └── quienhabla.py
-├── mexicosint_v2.2.5.py
+├── src/
+│   └── mexicosint/
+│       ├── __init__.py
+│       ├── __main__.py
+│       ├── cli.py
+│       ├── main.py
+│       ├── data/
+│       ├── modules/
+│       │   ├── ift_sns.py
+│       │   ├── local_parser.py
+│       │   └── quienhabla.py
+│       ├── services/
+│       │   ├── ip_geo.py
+│       │   └── scanner.py
+│       └── utils/
+│           └── validation.py
+├── pyproject.toml
 ├── requirements.txt
 ├── .gitignore
 ├── LICENSE
@@ -97,6 +108,12 @@ Instala las dependencias:
 pip install -r requirements.txt
 ```
 
+Instala el paquete en modo editable:
+
+```bash
+pip install -e .
+```
+
 ---
 
 ## Uso
@@ -104,16 +121,23 @@ pip install -r requirements.txt
 Ejecuta MeXiCOSINT usando el launcher:
 
 ```bash
-bash bin/mexicosint
+mexicosint 5512345678
+mexicosint -b 5512345678
 ```
 
-Esto evita tener que escribir manualmente el nombre completo del archivo principal de Python.
-
-También puedes ejecutar el script principal directamente:
+Tambien puedes usar el launcher del repositorio sin instalar el comando global:
 
 ```bash
-python3 mexicosint_v2.2.5.py
+bash bin/mexicosint 5512345678
 ```
+
+O ejecutar el modulo del paquete:
+
+```bash
+PYTHONPATH=src python3 -m mexicosint 5512345678
+```
+
+Use `-b`, `--compact-banner`, or the legacy `--small-banner` flag to force the compact ASCII banner.
 
 ---
 
@@ -187,8 +211,6 @@ Este proyecto está en desarrollo activo.
 
 Funciones planeadas:
 
-- Empaquetado instalable
-- Comando global `mexicosint`
 - Publicación de releases en GitHub
 - Paquete `.deb` para instalación local con `apt`
 - Mejoras en documentación
