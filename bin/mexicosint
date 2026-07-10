@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# MeXiCOSINT launcher
+# This lets users run the tool without typing the full Python filename.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$REPO_ROOT" || exit 1
+
+PYTHON_BIN="$REPO_ROOT/venv/bin/python"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="python3"
+fi
+
+PYTHONPATH="$REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m mexicosint "$@"

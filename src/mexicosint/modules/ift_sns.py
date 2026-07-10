@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 ift_sns.py
-IFT Plan Nacional de Numeración — builds SQLite from local CSV.
-Auto-detects pnn_Publico_*.csv in ~/mexicosint/data/
+IFT Plan Nacional de Numeracion - builds SQLite from local CSV.
+Auto-detects pnn_Publico_*.csv in the packaged data directory.
 """
 
 import os
