@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 
 from mexicosint.utils.validation import is_valid_ip
+from mexicosint.modules.local_parser import parse_mx_number
 
 try:
     from rich.console import Console
@@ -915,7 +916,14 @@ def rich_print_subscriber(result: ScanResult):
     table.add_row("Region LADA (ref.)", result.lada_region or "—")
     table.add_row("Operadora (Abstract)", result.abstract_carrier or "—")
     table.add_row("Operadora (NumVerify)", result.numverify_carrier or "—")
-    table.add_row("Tipo de linea", result.abstract_line_type or result.numverify_line_type or "—")
+    table.add_row(
+        "Tipo de linea",
+        result.abstract_line_type
+        if result.abstract_line_type not in ("", None, "unknown", "UNKNOWN")
+        else result.numverify_line_type
+        if result.numverify_line_type not in ("", None, "unknown", "UNKNOWN")
+        else result.local_line_type or "—"
+    )
     console.print()
     console.print(table)
 
@@ -1218,7 +1226,14 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
 
     result.region_phonenumbers = geocode_phonenumbers(parsed)
     result.lada_region = detect_lada_region(result.national_number)
-
+    local_info = parse_mx_number(raw)
+    result.local_line_type = (
+        "CELULAR PROBABLE"
+        if local_info.get("is_mobile")
+        else "LÍNEA FIJA"
+        if local_info.get("number_type") == "FIXED_LINE"
+        else ""
+    )
     result.osint_links = generate_osint_links(e164)
 
     # API calls
