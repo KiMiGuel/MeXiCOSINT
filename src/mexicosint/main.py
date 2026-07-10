@@ -32,6 +32,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 
+from mexicosint.utils.validation import is_valid_ip
+
 try:
     from rich.console import Console
     from rich.table import Table
@@ -1344,10 +1346,10 @@ def print_results(result: ScanResult):
     print("    NO garantiza la posicion exacta/GPS del telefono.")
 
 
-def main():
+def main(argv=None):
     global DUMMY_MODE, SMALL_BANNER
 
-    args = sys.argv[1:]
+    args = list(sys.argv[1:] if argv is None else argv)
 
     if "--dummy-test" in args:
         DUMMY_MODE = True
@@ -1355,39 +1357,33 @@ def main():
         print("\n[!] MODO DUMMY ACTIVADO: No se realizaran llamadas reales a las APIs.")
         print("    Se usaran datos de ejemplo. No se consumiran creditos.\n")
 
-    if "--small-banner" in args:
+    banner_flags = {"-b", "--compact-banner", "--small-banner"}
+    if any(flag in args for flag in banner_flags):
         SMALL_BANNER = True
-        args.remove("--small-banner")
+        args = [arg for arg in args if arg not in banner_flags]
 
     print_banner()
 
     if len(args) < 1:
-        print("Uso: python3 mexicosint_v2.2.4.py <numero_mexicano>")
-        print("       python3 mexicosint_v2.2.4.py --ip <direccion_ip>")
-        print("       python3 mexicosint_v2.2.4.py --dummy-test <numero_mexicano>")
+        print("Uso: mexicosint <numero_mexicano>")
+        print("     mexicosint --ip <direccion_ip>")
+        print("     mexicosint --dummy-test <numero_mexicano>")
         print("Ejemplos:")
-        print("    python3 mexicosint_v2.2.4.py 5512345678")
-        print("    python3 mexicosint_v2.2.4.py +525512345678")
-        print("    python3 mexicosint_v2.2.4.py --ip 8.8.8.8")
+        print("    mexicosint 5512345678")
+        print("    mexicosint +525512345678")
+        print("    mexicosint --ip 8.8.8.8")
         sys.exit(1)
 
     raw = args[0]
 
     if raw == "--ip":
         if len(args) < 2:
-            print("[!] Uso: python3 mexicosint_v2.2.4.py --ip <direccion_ip>")
+            print("[!] Uso: mexicosint --ip <direccion_ip>")
             sys.exit(1)
         ip = args[1]
-        # Validate IP address
-        import socket
-        try:
-            socket.inet_aton(ip)
-        except OSError:
-            try:
-                socket.inet_pton(socket.AF_INET6, ip)
-            except OSError:
-                print(f"[!] ERROR: '{ip}' no es una direccion IP valida.")
-                sys.exit(1)
+        if not is_valid_ip(ip):
+            print(f"[!] ERROR: '{ip}' no es una direccion IP valida.")
+            sys.exit(1)
         print(f"[+] Modo IP directo: {ip}")
         print(f"[+] Fecha/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 60)
