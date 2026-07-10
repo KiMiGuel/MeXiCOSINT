@@ -6,38 +6,32 @@ Esta guía explica cómo ejecutar y usar **MeXiCOSINT** después de instalarlo.
 
 ## Antes de empezar
 
-Asegúrate de estar dentro de la carpeta del proyecto:
-
-```bash
-cd MeXiCOSINT
-```
-
-Activa el entorno virtual:
+Activa el entorno virtual donde instalaste el paquete:
 
 ```bash
 source venv/bin/activate
-```
-
-Si el entorno virtual está activo, tu terminal debería mostrar algo parecido a:
-
-```text
-(venv) usuario@equipo:~/MeXiCOSINT$
 ```
 
 ---
 
 ## Ejecutar MeXiCOSINT
 
-La forma recomendada es usar el launcher incluido:
+La forma recomendada es usar el comando instalado:
 
 ```bash
-bash bin/mexicosint
+mexicosint --number 5512345678
 ```
 
-También puedes ejecutar directamente el archivo principal:
+También puedes usar el número como argumento posicional por compatibilidad:
 
 ```bash
-PYTHONPATH=src python3 -m mexicosint
+mexicosint 5512345678
+```
+
+Para ejecutar sin instalar el comando global:
+
+```bash
+PYTHONPATH=src python3 -m mexicosint --number 5512345678
 ```
 
 ---
@@ -46,51 +40,44 @@ PYTHONPATH=src python3 -m mexicosint
 
 MeXiCOSINT está enfocado en números telefónicos mexicanos.
 
-Formato recomendado:
+Formato internacional:
 
 ```text
 +52XXXXXXXXXX
 ```
 
-También puede aceptar formato nacional de 10 dígitos:
+Formato nacional de 10 dígitos:
 
 ```text
 XXXXXXXXXX
 ```
 
-Ejemplo de formato internacional:
+Ejemplos:
 
-```text
-+525512345678
-```
-
-Ejemplo de formato nacional:
-
-```text
-5512345678
+```bash
+mexicosint --number +525512345678
+mexicosint --number 5512345678
 ```
 
 ---
 
-## Flujo básico de uso
-
-1. Ejecuta la herramienta:
+## Opciones principales
 
 ```bash
-bash bin/mexicosint
+mexicosint --number 5512345678
+mexicosint --ip 8.8.8.8
+mexicosint --dummy-test --number 5512345678
+mexicosint -b --number 5512345678
+mexicosint --version
 ```
 
-2. Ingresa el número telefónico cuando la herramienta lo solicite.
-
-3. Revisa los resultados mostrados en terminal.
-
-4. Si la herramienta genera reportes, revisa los archivos creados dentro del proyecto.
+`-b`, `--compact-banner` y `--small-banner` fuerzan el banner compacto.
 
 ---
 
 ## Resultados posibles
 
-Dependiendo de la versión, configuración y API keys disponibles, MeXiCOSINT puede mostrar información como:
+Dependiendo de la configuración y API keys disponibles, MeXiCOSINT puede mostrar información como:
 
 * Validación del número
 * Formato nacional
@@ -107,99 +94,42 @@ Dependiendo de la versión, configuración y API keys disponibles, MeXiCOSINT pu
 
 ## APIs y resultados limitados
 
-MeXiCOSINT puede funcionar parcialmente sin API keys.
-
-Sin embargo, algunas funciones pueden estar limitadas si no configuraste servicios externos.
-
-Ejemplo:
+MeXiCOSINT puede funcionar parcialmente sin API keys. Algunas funciones estarán limitadas si no configuraste servicios externos.
 
 ```text
 Sin API key: validación local y parsing básico
 Con API key: enriquecimiento adicional según el servicio configurado
 ```
 
-Para configurar API keys, revisa:
-
-```text
-docs/CONFIG.md
-```
+Para configurar API keys, revisa `docs/CONFIG.md`.
 
 ---
 
 ## Reportes y archivos generados
 
-Si la herramienta genera reportes, pueden aparecer archivos como:
-
-```text
-reporte.json
-```
-
-```text
-reporte.html
-```
-
-```text
-reporte_mapa.html
-```
-
-Los nombres exactos pueden cambiar según la versión.
-
-También puede haber carpetas como:
-
-```text
-reports/
-```
+Los reportes generados se escriben dentro de carpetas ignoradas por Git, como:
 
 ```text
 output/
-```
-
-```text
+reports/
 results/
 ```
 
-Si no aparece ningún reporte, revisa la salida en terminal para confirmar si la función está disponible en tu versión.
-
----
-
-## Modo de prueba o desarrollo
-
-Si la versión incluye un modo de prueba, puede ejecutarse con una bandera especial.
-
-Ejemplo:
-
-```bash
-PYTHONPATH=src python3 -m mexicosint --dummy-test
-```
-
-Este modo está pensado para desarrollo local.
-
-No debe considerarse una función principal para usuarios finales.
+No publiques reportes con información sensible.
 
 ---
 
 ## Actualizar antes de usar
 
-Para actualizar el repositorio:
-
 ```bash
 git pull
+pip install -e .
 ```
 
-Después, si cambiaron las dependencias:
+Si cambiaron las dependencias:
 
 ```bash
 pip install -r requirements.txt
-```
-
----
-
-## Salir del entorno virtual
-
-Cuando termines:
-
-```bash
-deactivate
 ```
 
 ---
@@ -216,88 +146,26 @@ deactivate
 
 ## Solución rápida de problemas
 
-### El comando `bash bin/mexicosint` no funciona
+### El comando `mexicosint` no funciona
 
-Confirma que estás dentro de la carpeta del proyecto:
-
-```bash
-pwd
-```
-
-Confirma que existe el launcher:
-
-```bash
-ls -la bin
-```
-
-Ejecuta otra vez:
-
-```bash
-bash bin/mexicosint
-```
-
----
-
-### Error de dependencias
-
-Vuelve a instalar los requisitos:
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-### Error con el entorno virtual
-
-Recrea el entorno virtual:
-
-```bash
-rm -rf venv
-```
-
-```bash
-python3 -m venv venv
-```
+Confirma que el entorno virtual está activo y que el paquete fue instalado:
 
 ```bash
 source venv/bin/activate
+pip install -e .
 ```
+
+### Error de dependencias
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
 ### API key no detectada
-
-Revisa que el archivo de configuración exista:
 
 ```bash
 ls -la ~/.mx_osint_config.json
-```
-
-Revisa permisos:
-
-```bash
 chmod 600 ~/.mx_osint_config.json
 ```
 
-Revisa la guía de configuración:
-
-```text
-docs/CONFIG.md
-```
-
----
-
-## Estado
-
-Si todo está correcto, deberías poder ejecutar:
-
-```bash
-bash bin/mexicosint
-```
-
-Y ver el inicio de MeXiCOSINT en terminal.
+Revisa `docs/CONFIG.md`.
