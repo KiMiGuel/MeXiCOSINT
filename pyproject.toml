@@ -14,7 +14,6 @@ dependencies = [
     "requests>=2.28.0",
     "urllib3<2",
     "beautifulsoup4>=4.11.0",
-    "python-dotenv>=0.19.0",
     "lxml>=4.9.0",
     "phonenumbers>=8.13.0",
     "rich>=13.0.0",
@@ -23,7 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
-mexicosint = "mexicosint.cli:main"
+mexicosint = "mexicosint.cli:run"
 
 [tool.setuptools.packages.find]
 where = ["src"]
