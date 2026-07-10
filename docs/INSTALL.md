@@ -17,9 +17,6 @@ Instala los requisitos base con:
 
 ```bash
 sudo apt update
-```
-
-```bash
 sudo apt install -y python3 python3-pip python3-venv git
 ```
 
@@ -27,15 +24,8 @@ sudo apt install -y python3 python3-pip python3-venv git
 
 ## Clonar el repositorio
 
-Clona el repositorio desde GitHub:
-
 ```bash
 git clone https://github.com/KiMiGuel/MeXiCOSINT.git
-```
-
-Entra a la carpeta del proyecto:
-
-```bash
 cd MeXiCOSINT
 ```
 
@@ -45,50 +35,41 @@ cd MeXiCOSINT
 
 Se recomienda usar un entorno virtual para evitar conflictos con paquetes del sistema.
 
-Crea el entorno virtual:
-
 ```bash
 python3 -m venv venv
-```
-
-Activa el entorno virtual:
-
-```bash
 source venv/bin/activate
-```
-
-Cuando el entorno virtual esté activo, tu terminal debería mostrar algo parecido a:
-
-```text
-(venv) usuario@equipo:~/MeXiCOSINT$
 ```
 
 ---
 
-## Instalar dependencias
+## Instalar el paquete
 
-Instala las dependencias del proyecto:
+Instala MeXiCOSINT en modo editable desde la raíz del repositorio:
+
+```bash
+pip install -e .
+```
+
+Para desarrollo, también puedes instalar desde `requirements.txt`:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Si todo sale correctamente, MeXiCOSINT estará listo para ejecutarse.
-
 ---
 
 ## Ejecutar MeXiCOSINT
 
-La forma recomendada es usar el launcher incluido:
+La forma recomendada es usar el comando instalado:
 
 ```bash
-bash bin/mexicosint
+mexicosint --number 5512345678
 ```
 
-También puedes ejecutar directamente el archivo principal:
+También puedes ejecutar el módulo del paquete sin instalar el comando global:
 
 ```bash
-PYTHONPATH=src python3 -m mexicosint
+PYTHONPATH=src python3 -m mexicosint --number 5512345678
 ```
 
 ---
@@ -103,15 +84,11 @@ El archivo recomendado para configuración local es:
 ~/.mx_osint_config.json
 ```
 
-Este archivo debe quedarse en tu computadora.
-
-No debe subirse a GitHub.
+Este archivo debe quedarse en tu computadora y no debe subirse a GitHub.
 
 ---
 
 ## Proteger archivo de configuración
-
-Para proteger el archivo de configuración local:
 
 ```bash
 chmod 600 ~/.mx_osint_config.json
@@ -121,10 +98,9 @@ chmod 600 ~/.mx_osint_config.json
 
 ## Actualizar MeXiCOSINT
 
-Para actualizar el repositorio:
-
 ```bash
 git pull
+pip install -e .
 ```
 
 Si las dependencias cambiaron, vuelve a ejecutar:
@@ -137,8 +113,6 @@ pip install -r requirements.txt
 
 ## Salir del entorno virtual
 
-Cuando termines de usar la herramienta:
-
 ```bash
 deactivate
 ```
@@ -147,8 +121,6 @@ deactivate
 
 ## Instalación rápida
 
-Resumen completo:
-
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-pip python3-venv git
@@ -156,8 +128,8 @@ git clone https://github.com/KiMiGuel/MeXiCOSINT.git
 cd MeXiCOSINT
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
-bash bin/mexicosint
+pip install -e .
+mexicosint --number 5512345678
 ```
 
 ---
@@ -176,15 +148,11 @@ bash bin/mexicosint
 
 ### `python3: command not found`
 
-Instala Python:
-
 ```bash
 sudo apt install -y python3
 ```
 
 ### `pip: command not found`
-
-Instala pip:
 
 ```bash
 sudo apt install -y python3-pip
@@ -192,22 +160,17 @@ sudo apt install -y python3-pip
 
 ### Error creando el entorno virtual
 
-Instala venv:
-
 ```bash
 sudo apt install -y python3-venv
 ```
 
-### Error de permisos
+### El comando `mexicosint` no existe
 
-Asegúrate de estar dentro de la carpeta del proyecto y de tener permisos sobre los archivos.
-
-```bash
-pwd
-```
+Confirma que el entorno virtual está activo y reinstala el paquete:
 
 ```bash
-ls -la
+source venv/bin/activate
+pip install -e .
 ```
 
 ---
@@ -217,7 +180,5 @@ ls -la
 Si la instalación terminó correctamente, deberías poder ejecutar:
 
 ```bash
-bash bin/mexicosint
+mexicosint --number 5512345678
 ```
-
-Y ver el inicio de MeXiCOSINT en la terminal.
