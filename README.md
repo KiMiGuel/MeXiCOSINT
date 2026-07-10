@@ -78,6 +78,12 @@ MeXiCOSINT/
 
 ## Instalación
 
+pip:
+
+```pip
+pip install mexicosint
+```
+
 Clona el repositorio:
 
 ```bash
