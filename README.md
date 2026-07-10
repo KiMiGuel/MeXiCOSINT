@@ -35,7 +35,7 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - Enriquecimiento opcional mediante APIs externas
 - Procesamiento relacionado con IFT/SNS
 - Soporte para módulo QuienHabla.mx
-- Launcher para ejecutar la herramienta sin escribir el nombre completo del script
+- CLI instalable con el comando `mexicosint`
 - Configuración local de API keys
 - Soporte para reportes o salidas generadas según la versión
 
@@ -45,8 +45,6 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 
 ```text
 MeXiCOSINT/
-├── bin/
-│   └── mexicosint
 ├── docs/
 │   ├── INSTALL.md
 │   ├── USAGE.md
@@ -69,6 +67,7 @@ MeXiCOSINT/
 │           └── validation.py
 ├── pyproject.toml
 ├── requirements.txt
+├── MIGRATION.md
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -82,30 +81,14 @@ Clona el repositorio:
 
 ```bash
 git clone https://github.com/KiMiGuel/MeXiCOSINT.git
-```
-
-Entra a la carpeta del proyecto:
-
-```bash
 cd MeXiCOSINT
 ```
 
-Crea un entorno virtual:
+Crea y activa un entorno virtual:
 
 ```bash
 python3 -m venv venv
-```
-
-Activa el entorno virtual:
-
-```bash
 source venv/bin/activate
-```
-
-Instala las dependencias:
-
-```bash
-pip install -r requirements.txt
 ```
 
 Instala el paquete en modo editable:
@@ -114,30 +97,43 @@ Instala el paquete en modo editable:
 pip install -e .
 ```
 
+También puedes instalar las dependencias explícitas para desarrollo:
+
+```bash
+pip install -r requirements.txt
+```
+
 ---
 
 ## Uso
 
-Ejecuta MeXiCOSINT usando el launcher:
+Ejecuta MeXiCOSINT con el comando instalado:
+
+```bash
+mexicosint --number 5512345678
+mexicosint --number +525512345678
+mexicosint -b --number 5512345678
+```
+
+El número posicional se mantiene por compatibilidad:
 
 ```bash
 mexicosint 5512345678
-mexicosint -b 5512345678
 ```
 
-Tambien puedes usar el launcher del repositorio sin instalar el comando global:
+Modo IP directo:
 
 ```bash
-bash bin/mexicosint 5512345678
+mexicosint --ip 8.8.8.8
 ```
 
-O ejecutar el modulo del paquete:
+Ejecutar sin instalar el comando global:
 
 ```bash
-PYTHONPATH=src python3 -m mexicosint 5512345678
+PYTHONPATH=src python3 -m mexicosint --number 5512345678
 ```
 
-Use `-b`, `--compact-banner`, or the legacy `--small-banner` flag to force the compact ASCII banner.
+Usa `-b`, `--compact-banner` o el alias heredado `--small-banner` para forzar el banner compacto.
 
 ---
 
@@ -148,6 +144,7 @@ Use `-b`, `--compact-banner`, or the legacy `--small-banner` flag to force the c
 | [Guía de instalación](docs/INSTALL.md) | Instrucciones de instalación para Kali, Debian, Ubuntu y sistemas similares |
 | [Guía de uso](docs/USAGE.md) | Uso básico y notas de ejecución |
 | [Guía de configuración](docs/CONFIG.md) | Configuración local y manejo de API keys |
+| [Migración](MIGRATION.md) | Cambios de estructura para el paquete instalable |
 
 ---
 
@@ -178,6 +175,10 @@ No subas archivos como:
 config.json
 secrets.json
 keys.json
+tokens.json
+credentials.json
+*.local.json
+*.config.json
 .mx_osint_config.json
 ```
 
