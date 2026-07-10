@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import List, Optional
 
 from mexicosint import __version__
 
@@ -15,6 +16,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "number",
         nargs="?",
+        help="Numero telefonico mexicano a escanear. Se mantiene por compatibilidad.",
+    )
+    parser.add_argument(
+        "--number",
+        dest="phone_number",
+        metavar="PHONE",
         help="Numero telefonico mexicano a escanear.",
     )
     parser.add_argument(
@@ -44,29 +51,43 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
-    """Translate argparse output to the existing scanner argument format."""
-    argv: list[str] = []
+def _scan_number(args: argparse.Namespace) -> Optional[str]:
+    return args.phone_number or args.number
+
+
+def _to_scanner_argv(args: argparse.Namespace) -> List[str]:
+    """Translate CLI options to the scanner argument format."""
+    argv = []
     if args.dummy_test:
         argv.append("--dummy-test")
     if args.small_banner:
         argv.append("--small-banner")
     if args.ip:
         argv.extend(["--ip", args.ip])
-    elif args.number:
-        argv.append(args.number)
+    else:
+        number = _scan_number(args)
+        if number:
+            argv.append(number)
     return argv
 
 
-def main(argv: list[str] | None = None) -> int:
+def run(argv: Optional[List[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if not args.ip and not args.number:
+    if args.ip and _scan_number(args):
+        parser.error("usa --ip o --number, no ambos")
+
+    if not args.ip and not _scan_number(args):
         parser.print_help()
         return 1
 
     from mexicosint import main as app
 
-    app.main(_to_legacy_argv(args))
+    app.main(_to_scanner_argv(args))
     return 0
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """Backward-compatible wrapper for older entry-point references."""
+    return run(argv)
