@@ -78,45 +78,45 @@ MeXiCOSINT/
 
 ## Instalación
 
-pip:
+### Opción 1: pipx (recomendada)
 
-```pip
+MeXiCOSINT está publicado en PyPI. La forma recomendada de instalarlo es con `pipx`, que instala el comando de forma global pero aislada, sin tocar el Python del sistema (importante en Kali Linux moderno, donde `pip install` global está bloqueado por PEP 668):
+
+```bash
+sudo apt install -y pipx
+pipx install mexicosint
+```
+
+Después solo ejecuta:
+
+```bash
+mexicosint
+```
+
+Para actualizar a una nueva versión:
+
+```bash
+pipx upgrade mexicosint
+```
+
+### Opción 2: pip directo
+
+Si prefieres pip (fuera de Kali, o usando `--break-system-packages` en Kali):
+
+```bash
 pip install mexicosint
 ```
 
-Clona el repositorio:
+### Opción 3: clonar el repositorio
+
+Útil si quieres modificar el código o colaborar:
 
 ```bash
 git clone https://github.com/KiMiGuel/MeXiCOSINT.git
-```
-
-Entra a la carpeta del proyecto:
-
-```bash
 cd MeXiCOSINT
-```
-
-Crea un entorno virtual:
-
-```bash
 python3 -m venv venv
-```
-
-Activa el entorno virtual:
-
-```bash
 source venv/bin/activate
-```
-
-Instala las dependencias:
-
-```bash
 pip install -r requirements.txt
-```
-
-Instala el paquete en modo editable:
-
-```bash
 pip install -e .
 ```
 
@@ -124,20 +124,20 @@ pip install -e .
 
 ## Uso
 
-Ejecuta MeXiCOSINT usando el launcher:
+Ejecuta MeXiCOSINT usando el comando:
 
 ```bash
 mexicosint 5512345678
 mexicosint -b 5512345678
 ```
 
-Tambien puedes usar el launcher del repositorio sin instalar el comando global:
+Si clonaste el repositorio, también puedes usar el launcher sin instalar el comando global:
 
 ```bash
 bash bin/mexicosint 5512345678
 ```
 
-O ejecutar el modulo del paquete:
+O ejecutar el módulo del paquete:
 
 ```bash
 PYTHONPATH=src python3 -m mexicosint 5512345678
@@ -154,6 +154,7 @@ Use `-b`, `--compact-banner`, or the legacy `--small-banner` flag to force the c
 | [Guía de instalación](docs/INSTALL.md) | Instrucciones de instalación para Kali, Debian, Ubuntu y sistemas similares |
 | [Guía de uso](docs/USAGE.md) | Uso básico y notas de ejecución |
 | [Guía de configuración](docs/CONFIG.md) | Configuración local y manejo de API keys |
+| [English documentation](docs/ENGLISH.md) | Full documentation in English |
 
 ---
 

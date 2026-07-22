@@ -64,9 +64,8 @@ MeXiCOSINT/
 Before installing MeXiCOSINT, make sure your system has:
 
 * Python 3
-* pip
-* venv
-* git
+* pip (or pipx)
+* git (only if installing from the repository)
 
 Install the basic requirements on Kali Linux, Debian, Ubuntu, or similar systems:
 
@@ -80,7 +79,68 @@ sudo apt install -y python3 python3-pip python3-venv git
 
 ---
 
-## Installation
+## Installation from PyPI (recommended)
+
+MeXiCOSINT is published on PyPI, so you do not need to clone the repository just to use it.
+
+### Option A: pipx (recommended for Kali)
+
+`pipx` installs the tool in an isolated environment and exposes the `mexicosint` command globally, without touching the system Python.
+
+This matters on modern Kali Linux: global `pip install` is blocked by PEP 668 (`externally-managed-environment`), and `pipx` is the official workaround.
+
+Install pipx:
+
+```bash
+sudo apt update
+sudo apt install -y pipx
+```
+
+Install MeXiCOSINT:
+
+```bash
+pipx install mexicosint
+```
+
+Run it:
+
+```bash
+mexicosint
+```
+
+Upgrade to a new version:
+
+```bash
+pipx upgrade mexicosint
+```
+
+Uninstall:
+
+```bash
+pipx uninstall mexicosint
+```
+
+### Option B: plain pip
+
+On systems without PEP 668:
+
+```bash
+pip install mexicosint
+```
+
+On Kali, if you insist on global pip:
+
+```bash
+pip install mexicosint --break-system-packages
+```
+
+> pipx is recommended instead. `--break-system-packages` can break system Python packages.
+
+---
+
+## Installation from the Repository (for development)
+
+Use this method if you want to modify the code or contribute.
 
 Clone the repository:
 
@@ -112,13 +172,44 @@ Install the dependencies:
 pip install -r requirements.txt
 ```
 
-If everything completes successfully, MeXiCOSINT should be ready to run.
+Optionally, install the package in editable mode:
+
+```bash
+pip install -e .
+```
+
+Run from the repository using the included launcher:
+
+```bash
+bash bin/mexicosint
+```
+
+Or run the package module directly:
+
+```bash
+PYTHONPATH=src python3 -m mexicosint
+```
+
+When you are done, exit the virtual environment:
+
+```bash
+deactivate
+```
 
 ---
 
 ## Quick Installation
 
-Full setup summary:
+Full setup summary (pipx method):
+
+```bash
+sudo apt update
+sudo apt install -y pipx
+pipx install mexicosint
+mexicosint
+```
+
+Full setup summary (repository method):
 
 ```bash
 sudo apt update
@@ -135,30 +226,28 @@ bash bin/mexicosint
 
 ## Usage
 
-Make sure you are inside the project folder:
+If you installed from PyPI (pipx or pip), run the command directly:
 
 ```bash
-cd MeXiCOSINT
+mexicosint 5512345678
 ```
 
-Activate the virtual environment:
+Force the compact ASCII banner:
 
 ```bash
-source venv/bin/activate
+mexicosint -b 5512345678
 ```
 
-Run MeXiCOSINT using the included launcher:
+If you cloned the repository, make sure you are inside the project folder and the virtual environment is active, then use the launcher:
 
 ```bash
-bash bin/mexicosint
+bash bin/mexicosint 5512345678
 ```
 
-This avoids manually typing the full Python filename.
-
-You can also run the main script directly:
+Or the module form:
 
 ```bash
-PYTHONPATH=src python3 -m mexicosint
+PYTHONPATH=src python3 -m mexicosint 5512345678
 ```
 
 ---
@@ -198,7 +287,7 @@ Example national format:
 1. Run the tool:
 
 ```bash
-bash bin/mexicosint
+mexicosint
 ```
 
 2. Enter the Mexican phone number when prompted.
@@ -443,26 +532,23 @@ Deleting the line from the current file is not always enough because Git keeps h
 
 ## Updating MeXiCOSINT
 
-To update the repository:
+If installed with pipx:
+
+```bash
+pipx upgrade mexicosint
+```
+
+If installed with pip:
+
+```bash
+pip install --upgrade mexicosint
+```
+
+If you cloned the repository:
 
 ```bash
 git pull
-```
-
-If dependencies changed, run:
-
-```bash
 pip install -r requirements.txt
-```
-
----
-
-## Exiting the Virtual Environment
-
-When you are done using the tool:
-
-```bash
-deactivate
 ```
 
 ---
@@ -502,6 +588,30 @@ Install pip:
 ```bash
 sudo apt install -y python3-pip
 ```
+
+---
+
+### `pipx: command not found`
+
+Install pipx:
+
+```bash
+sudo apt install -y pipx
+```
+
+If the `mexicosint` command is missing after a pipx install, fix the PATH:
+
+```bash
+pipx ensurepath
+```
+
+Close and reopen the terminal afterwards.
+
+---
+
+### `error: externally-managed-environment`
+
+You are trying to use global `pip install` on a PEP 668 system (modern Kali/Debian/Ubuntu). Use `pipx install mexicosint` instead.
 
 ---
 
