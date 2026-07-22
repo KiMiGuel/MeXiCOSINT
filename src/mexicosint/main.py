@@ -8,6 +8,8 @@ Autor: KiMiGuEL
 Cambios v2.3.0:
   - Nuevas flags CLI: --set-key, --list-keys, --config-path
   - API keys gestionables desde la linea de comandos (sin editar JSON a mano)
+  - Escaneo combinado numero + --ip en una sola corrida (orden independiente)
+  - IPs privadas/reservadas se detectan y no consumen llamadas a APIs
 
 Correcciones v2.2.4:
   - Validacion usa is_valid_number() ademas de is_possible_number()
@@ -1433,6 +1435,16 @@ def print_results(result: ScanResult):
     print("    NO garantiza la posicion exacta/GPS del telefono.")
 
 
+def _is_private_ip(ip: str) -> bool:
+    """True if the address is private/reserved and not geolocatable via public APIs."""
+    try:
+        import ipaddress
+        addr = ipaddress.ip_address(ip)
+        return addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast
+    except ValueError:
+        return False
+
+
 def main(argv=None):
     global DUMMY_MODE, SMALL_BANNER
 
@@ -1451,45 +1463,55 @@ def main(argv=None):
 
     print_banner()
 
-    if len(args) < 1:
-        print("Uso: mexicosint <numero_mexicano>")
+    # Extract --ip pair regardless of position; the rest is the phone number.
+    ip_value = None
+    if "--ip" in args:
+        i = args.index("--ip")
+        if i + 1 >= len(args):
+            print("[!] Uso: mexicosint [numero] --ip <direccion_ip>")
+            sys.exit(1)
+        ip_value = args[i + 1]
+        del args[i:i + 2]
+
+    number = args[0] if args else None
+
+    if not number and not ip_value:
+        print("Uso: mexicosint <numero_mexicano> [--ip <direccion_ip_publica>]")
         print("     mexicosint --ip <direccion_ip>")
         print("     mexicosint --dummy-test <numero_mexicano>")
         print("Ejemplos:")
         print("    mexicosint 5512345678")
         print("    mexicosint +525512345678")
         print("    mexicosint --ip 8.8.8.8")
+        print("    mexicosint 5512345678 --ip 8.8.8.8")
+        print("    mexicosint --set-key opencage TU_KEY")
+        print("    mexicosint --list-keys")
         sys.exit(1)
 
-    raw = args[0]
-
-    if raw == "--ip":
-        if len(args) < 2:
-            print("[!] Uso: mexicosint --ip <direccion_ip>")
-            sys.exit(1)
-        ip = args[1]
-        if not is_valid_ip(ip):
-            print(f"[!] ERROR: '{ip}' no es una direccion IP valida.")
-            sys.exit(1)
-        print(f"[+] Modo IP directo: {ip}")
-        print(f"[+] Fecha/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print("=" * 60)
-        config = init_config()
-        active = check_keys(config)
-        print_ip_geo(ip, _get_api_key(config, "ip2location"), _get_api_key(config, "ipinfo"))
-        print("\n[*] Escaneo completado.")
-        print("=" * 60)
-        sys.exit(0)
-
-    print(f"[+] Entrada cruda: {raw}")
     print(f"[+] Fecha/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
     config = init_config()
     active = check_keys(config)
 
-    result = run_phone_scan(raw, config, active)
-    print_results(result)
+    if number:
+        print(f"[+] Entrada cruda: {number}")
+        print("=" * 60)
+        result = run_phone_scan(number, config, active)
+        print_results(result)
+
+    if ip_value:
+        if not is_valid_ip(ip_value):
+            print(f"[!] ERROR: '{ip_value}' no es una direccion IP valida.")
+            sys.exit(1)
+        print(f"\n[+] Modo IP: {ip_value}")
+        print("=" * 60)
+        if _is_private_ip(ip_value):
+            print(f"[!] '{ip_value}' es una IP privada/reservada.")
+            print("    Las APIs publicas no geolocalizan IPs privadas (RFC 1918).")
+            print("    Usa una IP publica para este modo.")
+        else:
+            print_ip_geo(ip_value, _get_api_key(config, "ip2location"), _get_api_key(config, "ipinfo"))
 
     print("\n[*] Escaneo completado.")
     print("=" * 60)
