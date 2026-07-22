@@ -3,6 +3,8 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/pypi/v/mexicosint.svg" alt="PyPI">
+  <img src="https://img.shields.io/github/v/release/KiMiGuel/MeXiCOSINT.svg" alt="Release">
   <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/Licencia-MIT-green.svg" alt="Licencia">
   <img src="https://img.shields.io/badge/OSINT-México-red.svg" alt="OSINT México">
@@ -35,7 +37,8 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - Enriquecimiento opcional mediante APIs externas
 - Procesamiento relacionado con IFT/SNS
 - Soporte para módulo QuienHabla.mx
-- Launcher para ejecutar la herramienta sin escribir el nombre completo del script
+- Escaneo combinado número + IP en una sola corrida
+- Gestión de API keys desde la CLI (`--set-key`, `--list-keys`, `--config-path`)
 - Configuración local de API keys
 - Soporte para reportes o salidas generadas según la versión
 
@@ -129,6 +132,21 @@ Ejecuta MeXiCOSINT usando el comando:
 ```bash
 mexicosint 5512345678
 mexicosint -b 5512345678
+```
+
+Escaneo combinado número + IP (el orden no importa):
+
+```bash
+mexicosint 5512345678 --ip 8.8.8.8
+mexicosint --ip 8.8.8.8 5512345678
+```
+
+Gestión de API keys desde la CLI:
+
+```bash
+mexicosint --set-key opencage TU_KEY
+mexicosint --list-keys
+mexicosint --config-path
 ```
 
 Si clonaste el repositorio, también puedes usar el launcher sin instalar el comando global:
