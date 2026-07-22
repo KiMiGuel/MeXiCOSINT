@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.2.5 (Fixed)
+MeXicOSINT v2.3.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.3.0:
+  - Nuevas flags CLI: --set-key, --list-keys, --config-path
+  - API keys gestionables desde la linea de comandos (sin editar JSON a mano)
 
 Correcciones v2.2.4:
   - Validacion usa is_valid_number() ademas de is_possible_number()
@@ -238,7 +242,7 @@ def print_banner():
     print()
     print(GREEN + "╔══════════════════════════════════════════════════════════════════╗" + RESET)
     print(GREEN + "║                                                                  ║" + RESET)
-    print(WHITE + "║                    MeXicOSINT v2.2.5                             ║" + RESET)
+    print(WHITE + "║                    MeXicOSINT v2.3.0                             ║" + RESET)
     print(RED + "║              OSINT para numeros Mexicanos                        ║" + RESET)
     print(RED + "║                    Autor: KiMiGuEL                               ║" + RESET)
     print(RED + "╚══════════════════════════════════════════════════════════════════╝" + RESET)
@@ -311,6 +315,74 @@ def _get_api_key(config, key):
     if key == "abstract_phone_intelligence" and config.get("abstract"):
         return config["abstract"]
     return ""
+
+
+# --- API KEY MANAGEMENT (CLI) ---
+SERVICE_ALIASES = {
+    "abstract": "abstract_phone_intelligence",
+}
+
+
+def _canonical_service(name: str) -> str:
+    name = name.strip().lower()
+    return SERVICE_ALIASES.get(name, name)
+
+
+def _mask_key(value: str) -> str:
+    if not isinstance(value, str) or len(value) <= 5:
+        return "FALTANTE"
+    return f"{value[:4]}{'*' * 8} (guardada, {len(value)} caracteres)"
+
+
+def set_key_cli(service: str, key: str) -> int:
+    """Save an API key to the config file. Returns process exit code."""
+    canonical = _canonical_service(service)
+    if canonical not in SAMPLE_CONFIG:
+        print(f"[!] Servicio desconocido: '{service}'")
+        print(f"    Servicios validos: {', '.join(SAMPLE_CONFIG)}")
+        aliases = ", ".join(f"{a} -> {c}" for a, c in SERVICE_ALIASES.items())
+        print(f"    Alias: {aliases}")
+        return 1
+
+    config = {}
+    if CONFIG_PATH.exists():
+        try:
+            with open(CONFIG_PATH, encoding="utf-8") as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"[!] No se pudo leer {CONFIG_PATH}: {e}")
+            return 1
+    else:
+        config = dict(SAMPLE_CONFIG)
+
+    config[canonical] = key.strip()
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+    os.chmod(CONFIG_PATH, stat.S_IRUSR | stat.S_IWUSR)
+    print(f"[+] Key guardada para '{canonical}' en {CONFIG_PATH}")
+    print("    Permisos: 0o600 (solo tu usuario puede leerla).")
+    return 0
+
+
+def list_keys_cli() -> int:
+    """Print masked API key status. Returns process exit code."""
+    print(f"[*] Archivo de configuracion: {CONFIG_PATH}")
+    if not CONFIG_PATH.exists():
+        print("    No existe todavia. Usa --set-key para crear la primera key.")
+        return 0
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            config = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"[!] No se pudo leer el config: {e}")
+        return 1
+    print("[*] Estado de API Keys:")
+    for service in SAMPLE_CONFIG:
+        print(f"    {service:30} {_mask_key(config.get(service, ''))}")
+    extra = [k for k in config if k not in SAMPLE_CONFIG]
+    for service in extra:
+        print(f"    {service:30} {_mask_key(config.get(service, ''))} (extra)")
+    return 0
 
 
 # --- MEXICO LADA DATABASE (FIX #4: Official IFT data) ---
@@ -513,7 +585,7 @@ def geocode_nominatim(city_region):
             "limit": 1,
             "countrycodes": "mx"
         }
-        headers = {"User-Agent": "MeXicOSINT/2.2.5 (OSINT research)"}
+        headers = {"User-Agent": "MeXicOSINT/2.3.0 (OSINT research)"}
         r = requests.get(url, params=params, headers=headers, timeout=10)
         data = r.json()
         if data:
