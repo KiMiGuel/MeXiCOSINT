@@ -6,11 +6,30 @@ import argparse
 
 from mexicosint import __version__
 
+EPILOG = """ejemplos:
+  mexicosint 5512345678                  Escanea un numero mexicano
+  mexicosint +525512345678               Formato internacional tambien funciona
+  mexicosint --ip 8.8.8.8                Geolocaliza una IP publica
+  mexicosint 5512345678 --ip 8.8.8.8     Escaneo combinado: numero + IP
+  mexicosint --ip 8.8.8.8 5512345678     Lo mismo, el orden no importa
+  mexicosint -b 5512345678               Banner compacto
+  mexicosint --dummy-test 5512345678     Datos de prueba, sin llamadas a APIs
+  mexicosint --set-key opencage TU_KEY   Guarda una API key
+  mexicosint --list-keys                 Muestra keys guardadas (enmascaradas)
+  mexicosint --config-path               Ruta del archivo de configuracion
+
+servicios validos para --set-key:
+  abstract (alias de abstract_phone_intelligence), numverify, shodan,
+  ip2location, ipinfo, opencage
+"""
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mexicosint",
         description="OSINT para numeros telefonicos Mexicanos.",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "number",
@@ -21,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--ip",
         dest="ip",
         metavar="ADDRESS",
-        help="Geolocaliza directamente una direccion IP.",
+        help="Geolocaliza una IP publica. Combinable con un numero.",
     )
     parser.add_argument(
         "--dummy-test",
@@ -40,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--set-key",
         nargs=2,
         metavar=("SERVICIO", "KEY"),
-        help="Guarda una API key en el archivo de configuracion (ej. --set-key opencage TU_KEY).",
+        help="Guarda una API key en el archivo de configuracion.",
     )
     parser.add_argument(
         "--list-keys",
@@ -61,16 +80,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
-    """Translate argparse output to the existing scanner argument format."""
+    """Translate argparse output to the scanner argument format.
+
+    Number goes first; --ip travels as a flag pair so the scanner can
+    run combined scans regardless of argument order on the command line.
+    """
     argv: list[str] = []
     if args.dummy_test:
         argv.append("--dummy-test")
     if args.small_banner:
         argv.append("--small-banner")
+    if args.number:
+        argv.append(args.number)
     if args.ip:
         argv.extend(["--ip", args.ip])
-    elif args.number:
-        argv.append(args.number)
     return argv
 
 
