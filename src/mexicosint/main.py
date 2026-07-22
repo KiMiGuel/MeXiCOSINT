@@ -10,6 +10,7 @@ Cambios v2.3.0:
   - API keys gestionables desde la linea de comandos (sin editar JSON a mano)
   - Escaneo combinado numero + --ip en una sola corrida (orden independiente)
   - IPs privadas/reservadas se detectan y no consumen llamadas a APIs
+  - Link Paginas Blancas removido: dominio muerto/reutilizado (FIX #11)
 
 Correcciones v2.2.4:
   - Validacion usa is_valid_number() ademas de is_possible_number()
@@ -1229,7 +1230,8 @@ def generate_osint_links(e164):
         "Google (exacto)": f"https://www.google.com/search?q={quoted_exact}",
         "Google dork FB": f"https://www.google.com/search?q={urllib.parse.quote('site:facebook.com ' + num_no_plus)}",
         "Google dork ML": f"https://www.google.com/search?q={urllib.parse.quote('site:mercadolibre.com.mx ' + num_no_plus)}",
-        "Paginas Blancas": f"https://www.paginasblancas.com.mx/buscar/personas/{num10}",
+        # FIX #11: Paginas Blancas link removed - domain dead/repurposed (v2.3.0)
+        # "Paginas Blancas": f"https://www.paginasblancas.com.mx/buscar/personas/{num10}",  # REMOVED
         "Formato E.164": e164,
     }
     return links
