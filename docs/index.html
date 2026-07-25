@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeXiCOSINT — La herramienta OSINT para números telefónicos mexicanos</title>
+<meta name="description" content="MeXiCOSINT: OSINT para números telefónicos mexicanos con la base oficial IFT/PNN integrada. Operadora, modalidad y fecha de asignación, offline.">
+<style>
+  :root{
+    --bg:#0b0f0c;
+    --bg2:#10160f;
+    --panel:#141b16;
+    --line:#223026;
+    --txt:#e8f0e9;
+    --muted:#9db3a3;
+    --green:#1db954;
+    --green2:#0f7a38;
+    --red:#e5484d;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6}
+  a{color:var(--green);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  nav{position:sticky;top:0;background:rgba(11,15,12,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);z-index:10}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .logo{font-weight:800;font-size:1.15rem;letter-spacing:.5px}
+  .logo span{color:var(--green)}
+  nav .links a{color:var(--muted);margin-left:22px;font-size:.95rem}
+  nav .links a:hover{color:var(--txt);text-decoration:none}
+  .badge-ver{font-family:var(--mono);font-size:.75rem;color:var(--green);border:1px solid var(--green2);border-radius:999px;padding:2px 10px;margin-left:10px}
+  header{padding:80px 0 60px;text-align:center;background:radial-gradient(ellipse at 50% -10%,#14251a 0%,var(--bg) 60%)}
+  header img.banner{max-width:min(680px,90%);height:auto;border-radius:12px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  h1{font-size:clamp(1.9rem,4.5vw,3rem);margin:36px 0 14px;font-weight:800;letter-spacing:-.5px}
+  .tagline{font-size:clamp(1rem,2vw,1.25rem);color:var(--muted);max-width:680px;margin:0 auto 32px}
+  .tagline b{color:var(--txt)}
+  .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-block;padding:13px 26px;border-radius:10px;font-weight:700;font-size:.98rem;transition:.15s}
+  .btn-p{background:var(--green);color:#04120a}
+  .btn-p:hover{background:#23c762;text-decoration:none}
+  .btn-s{border:1px solid var(--line);color:var(--txt);background:var(--panel)}
+  .btn-s:hover{border-color:var(--green2);text-decoration:none}
+  .install{margin:44px auto 0;max-width:640px;background:#070a08;border:1px solid var(--line);border-radius:12px;text-align:left;overflow:hidden}
+  .install .bar{display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .install .bar i{width:11px;height:11px;border-radius:50%;display:block}
+  .install .bar i:nth-child(1){background:#ff5f57}.install .bar i:nth-child(2){background:#febc2e}.install .bar i:nth-child(3){background:#28c840}
+  .install pre{padding:16px 18px;font-family:var(--mono);font-size:.9rem;color:#b6f2c9;overflow-x:auto}
+  .install .c{color:#5f7a67}
+  section{padding:72px 0}
+  .kicker{font-family:var(--mono);color:var(--green);font-size:.8rem;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+  h2{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:800;margin-bottom:16px;letter-spacing:-.3px}
+  .lead{color:var(--muted);max-width:720px;font-size:1.05rem}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:36px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+  .card h3{font-size:1.05rem;margin:12px 0 8px}
+  .card p{color:var(--muted);font-size:.93rem}
+  .card .ico{font-size:1.5rem}
+  .card.star{border-color:var(--green2);background:linear-gradient(160deg,#12201580,var(--panel))}
+  .card.star .pill{display:inline-block;font-family:var(--mono);font-size:.68rem;color:#04120a;background:var(--green);border-radius:6px;padding:2px 8px;margin-bottom:6px;font-weight:700}
+  .ift{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .ift-flex{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center;margin-top:28px}
+  @media(max-width:840px){.ift-flex{grid-template-columns:1fr}}
+  .term{background:#070a08;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-family:var(--mono);font-size:.82rem}
+  .term .bar{display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .term .bar i{width:11px;height:11px;border-radius:50%;display:block}
+  .term .bar i:nth-child(1){background:#ff5f57}.term .bar i:nth-child(2){background:#febc2e}.term .bar i:nth-child(3){background:#28c840}
+  .term pre{padding:18px;overflow-x:auto;color:#cfe9d6;line-height:1.7}
+  .hl{color:var(--green);font-weight:700}
+  .hlr{color:var(--red);font-weight:700}
+  .dim{color:#5f7a67}
+  .ift ul{list-style:none;margin-top:18px}
+  .ift li{padding:8px 0 8px 28px;position:relative;color:var(--muted)}
+  .ift li::before{content:"▸";color:var(--green);position:absolute;left:0}
+  .ift li b{color:var(--txt)}
+  table{width:100%;border-collapse:collapse;margin-top:32px;font-size:.95rem}
+  th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:.85rem;text-transform:uppercase;letter-spacing:1px}
+  td:first-child{color:var(--muted)}
+  .yes{color:var(--green);font-weight:700}
+  .no{color:var(--red)}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:36px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+  .step .n{font-family:var(--mono);color:var(--green);font-size:1.6rem;font-weight:800}
+  .step h3{margin:10px 0 6px;font-size:1rem}
+  .step p{color:var(--muted);font-size:.9rem}
+  .step code{font-family:var(--mono);background:#070a08;border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:.8rem;color:#b6f2c9}
+  footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--muted);font-size:.9rem}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px}
+  footer a{margin-right:18px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo">MeXi<span>COSINT</span><span class="badge-ver">v2.4.0</span></div>
+    <div class="links">
+      <a href="#que-hace">Qué hace</a>
+      <a href="#ift">Base IFT</a>
+      <a href="#porque">Por qué</a>
+      <a href="#instalar">Instalar</a>
+      <a href="https://github.com/KiMiGuel/MeXiCOSINT">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <img class="banner" src="https://raw.githubusercontent.com/KiMiGuel/MeXiCOSINT/main/mexsint.png" alt="MeXiCOSINT">
+    <h1>OSINT para números telefónicos mexicanos</h1>
+    <p class="tagline">Valida, analiza y enriquece cualquier número de México — con la <b>base oficial del IFT integrada</b>. Sin internet. Sin API keys. Directo del regulador.</p>
+    <div class="cta">
+      <a class="btn btn-p" href="#instalar">Instalar ahora</a>
+      <a class="btn btn-s" href="https://github.com/KiMiGuel/MeXiCOSINT">Ver en GitHub</a>
+    </div>
+    <div class="install">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <pre><span class="c"># un comando y listo</span>
+pipx install mexicosint
+mexicosint 5512345678</pre>
+    </div>
+  </div>
+</header>
+
+<section id="que-hace">
+  <div class="wrap">
+    <p class="kicker">Qué hace</p>
+    <h2>Un número entra. Un expediente sale.</h2>
+    <p class="lead">MeXiCOSINT toma cualquier número telefónico mexicano y genera un análisis completo: validación, operadora, tipo de línea, región, consenso entre fuentes, enlaces de investigación y reporte exportable.</p>
+    <div class="grid">
+      <div class="card star">
+        <span class="pill">EXCLUSIVO</span>
+        <div class="ico">🏛️</div>
+        <h3>Base oficial IFT/PNN offline</h3>
+        <p>177,996 bloques de numeración asignada del Plan Nacional de Numeración, dentro del paquete. Operadora, modalidad y fecha de asignación — directo del regulador, sin conexión.</p>
+      </div>
+      <div class="card">
+        <div class="ico">✅</div>
+        <h3>Validación completa</h3>
+        <p>Formato nacional e internacional (E.164), región por phonenumbers, referencia LADA y parsing local de números mexicanos.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🗳️</div>
+        <h3>Consenso entre fuentes</h3>
+        <p>Votación ponderada entre phonenumbers, AbstractAPI y NumVerify. La ubicación consensuada muestra su nivel de confianza — sin falsas certezas.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🚨</div>
+        <h3>Detección de números premium</h3>
+        <p>Series 200/300/500/800/900 identificadas automáticamente. Los números 900 (sobre cuota) disparan alerta roja de posible estafa.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🔗</div>
+        <h3>Enlaces de investigación</h3>
+        <p>Links OSINT verificados que realmente buscan por número: WhatsApp, Truecaller, Google dorks, Facebook y más. Sin enlaces muertos ni decorativos.</p>
+      </div>
+      <div class="card">
+        <div class="ico">📁</div>
+        <h3>Reportes exportables</h3>
+        <p>Reporte JSON con hash SHA-256 y mapa HTML de la localidad consensuada. Listo para documentar investigaciones.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ift" id="ift">
+  <div class="wrap">
+    <p class="kicker">Lo que la hace única</p>
+    <h2>La única herramienta con la base oficial del IFT</h2>
+    <div class="ift-flex">
+      <div>
+        <p class="lead">Ninguna otra herramienta OSINT consulta el registro del regulador mexicano. MeXiCOSINT lo lleva integrado: <b>sin internet, sin APIs, sin costo por consulta.</b></p>
+        <ul>
+          <li><b>Operadora oficial</b> — el concesionario dueño del bloque (Telcel, Telmex, AT&T, Movistar y 20+ más)</li>
+          <li><b>Modalidad</b> — línea fija, móvil (CPP/MPP) o no geográfico</li>
+          <li><b>Fecha de asignación</b> — cuándo el IFT asignó el bloque</li>
+          <li><b>Actualizable</b> — <code>tools/update_ift_blocks.py</code> descarga el plan vigente</li>
+        </ul>
+      </div>
+      <div class="term">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <pre><span class="dim">$</span> mexicosint 6644837308
+
+[+] INFORMACION DEL SUSCRIPTOR
+    MSISDN (E.164):      +526644837308
+    Valido:              SI
+    <span class="hl">Operadora (IFT oficial): Telcel</span>
+    <span class="hl">Modalidad (IFT):     Movil (CPP)</span>
+    <span class="hl">Asignado (IFT):      16/10/2014</span>
+
+<span class="dim">$</span> mexicosint 9000211234
+    <span class="hlr">Tipo de servicio (IFT): Sobre cuota</span>
+    <span class="hlr">(PREMIUM, posible estafa)</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="porque">
+  <div class="wrap">
+    <p class="kicker">Por qué MeXiCOSINT</p>
+    <h2>La mejor herramienta OSINT mexicana del momento</h2>
+    <p class="lead">Las herramientas genéricas tratan a México como un país más. MeXiCOSINT está construida para México desde cero.</p>
+    <table>
+      <tr><th>Capacidad</th><th>Herramientas genéricas</th><th>MeXiCOSINT</th></tr>
+      <tr><td>Base oficial IFT/PNN offline</td><td class="no">✗</td><td class="yes">✓ 177,996 bloques</td></tr>
+      <tr><td>LADAs y formato mexicano nativo</td><td class="no">Parcial</td><td class="yes">✓ Nativo</td></tr>
+      <tr><td>Series 800/900 (toll-free/premium)</td><td class="no">✗</td><td class="yes">✓ Con alerta de estafa</td></tr>
+      <tr><td>Consenso ponderado multi-fuente</td><td class="no">✗</td><td class="yes">✓</td></tr>
+      <tr><td>Documentación en español</td><td class="no">✗</td><td class="yes">✓ ES + EN</td></tr>
+      <tr><td>Funciona sin API keys</td><td class="no">Limitado</td><td class="yes">✓ Base IFT siempre disponible</td></tr>
+      <tr><td>Gratis y open source</td><td class="no">Parcial</td><td class="yes">✓ MIT</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="instalar">
+  <div class="wrap">
+    <p class="kicker">Empieza en 60 segundos</p>
+    <h2>Instalación</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="n">01</div>
+        <h3>Instala con pipx</h3>
+        <p><code>pipx install mexicosint</code><br>Aislado, sin tocar el Python del sistema. Ideal para Kali.</p>
+      </div>
+      <div class="step">
+        <div class="n">02</div>
+        <h3>Escanea un número</h3>
+        <p><code>mexicosint 5512345678</code><br>La base IFT funciona de inmediato, sin configurar nada.</p>
+      </div>
+      <div class="step">
+        <div class="n">03</div>
+        <h3>Opcional: API keys</h3>
+        <p><code>mexicosint --set-key opencage TU_KEY</code><br>Enriquecimiento extra cuando lo necesites.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <b>MeXiCOSINT</b> — OSINT para números telefónicos mexicanos.<br>
+      Autor: <b>KiMiGuEL</b> · Licencia MIT · Para investigación autorizada y fines educativos.
+    </div>
+    <div>
+      <a href="https://github.com/KiMiGuel/MeXiCOSINT">GitHub</a>
+      <a href="https://pypi.org/project/mexicosint/">PyPI</a>
+      <a href="https://github.com/KiMiGuel/MeXiCOSINT/releases">Releases</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
