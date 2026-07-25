@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.3.0
+MeXicOSINT v2.4.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.4.0:
+  - Base oficial IFT/PNN integrada (178k bloques de numeracion)
+  - Consulta offline de operadora, modalidad y fecha de asignacion
+  - Identificacion de series no geograficas 200/300/500/800/900
+  - Alerta de fraude para numeros 900 (cobro premium)
+  - Herramienta tools/update_ift_blocks.py para actualizar la base
 
 Cambios v2.3.0:
   - Nuevas flags CLI: --set-key, --list-keys, --config-path
@@ -41,6 +48,12 @@ from dataclasses import dataclass, field, asdict
 
 from mexicosint.utils.validation import is_valid_ip
 from mexicosint.modules.local_parser import parse_mx_number
+
+try:
+    from mexicosint.modules.ift_blocks import lookup_block, modality_label
+    IFT_BLOCKS_AVAILABLE = True
+except ImportError:
+    IFT_BLOCKS_AVAILABLE = False
 
 try:
     from rich.console import Console
@@ -102,6 +115,11 @@ class ScanResult:
     national_number: str = ""
     region_phonenumbers: str = ""
     lada_region: str = ""
+    ift_carrier: str = ""
+    ift_modality: str = ""
+    ift_zona: str = ""
+    ift_fecha_asignacion: str = ""
+    ift_service_type: str = ""
     abstract_data: dict = field(default_factory=dict)
     numverify_data: dict = field(default_factory=dict)
     abstract_location: str = ""
@@ -245,7 +263,7 @@ def print_banner():
     print()
     print(GREEN + "╔══════════════════════════════════════════════════════════════════╗" + RESET)
     print(GREEN + "║                                                                  ║" + RESET)
-    print(WHITE + "║                    MeXicOSINT v2.3.0                             ║" + RESET)
+    print(WHITE + "║                    MeXicOSINT v2.4.0                             ║" + RESET)
     print(RED + "║              OSINT para numeros Mexicanos                        ║" + RESET)
     print(RED + "║                    Autor: KiMiGuEL                               ║" + RESET)
     print(RED + "╚══════════════════════════════════════════════════════════════════╝" + RESET)
@@ -588,7 +606,7 @@ def geocode_nominatim(city_region):
             "limit": 1,
             "countrycodes": "mx"
         }
-        headers = {"User-Agent": "MeXicOSINT/2.3.0 (OSINT research)"}
+        headers = {"User-Agent": "MeXicOSINT/2.4.0 (OSINT research)"}
         r = requests.get(url, params=params, headers=headers, timeout=10)
         data = r.json()
         if data:
@@ -989,6 +1007,14 @@ def rich_print_subscriber(result: ScanResult):
     table.add_row("Valido", "[green]SI[/green]" if result.valid else "[red]NO[/red]")
     table.add_row("Region (phonenumbers)", result.region_phonenumbers or "—")
     table.add_row("Region LADA (ref.)", result.lada_region or "—")
+    if result.ift_carrier:
+        table.add_row("Operadora (IFT oficial)", f"[bold green]{result.ift_carrier}[/bold green]")
+    if result.ift_modality:
+        table.add_row("Modalidad (IFT)", result.ift_modality)
+    if result.ift_fecha_asignacion:
+        table.add_row("Asignado (IFT)", result.ift_fecha_asignacion)
+    if result.ift_service_type:
+        table.add_row("Tipo de servicio (IFT)", f"[bold red]{result.ift_service_type}[/bold red]")
     table.add_row("Operadora (Abstract)", result.abstract_carrier or "—")
     table.add_row("Operadora (NumVerify)", result.numverify_carrier or "—")
     table.add_row(
@@ -1012,6 +1038,14 @@ def plain_print_subscriber(result: ScanResult):
     print(f"    Valido:              {'SI' if result.valid else 'NO'}")
     print(f"    Region (phonenumbers): {result.region_phonenumbers or '—'}")
     print(f"    Region LADA (ref.):  {result.lada_region or '—'}")
+    if result.ift_carrier:
+        print(f"    Operadora (IFT oficial): {result.ift_carrier}")
+    if result.ift_modality:
+        print(f"    Modalidad (IFT):     {result.ift_modality}")
+    if result.ift_fecha_asignacion:
+        print(f"    Asignado (IFT):      {result.ift_fecha_asignacion}")
+    if result.ift_service_type:
+        print(f"    Tipo de servicio (IFT): {result.ift_service_type}")
     print(f"    Operadora (Abstract): {result.abstract_carrier or '—'}")
     print(f"    Operadora (NumVerify): {result.numverify_carrier or '—'}")
     print(f"    Tipo de linea:       {result.abstract_line_type or result.numverify_line_type or '—'}")
@@ -1302,6 +1336,17 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
 
     result.region_phonenumbers = geocode_phonenumbers(parsed)
     result.lada_region = detect_lada_region(result.national_number)
+    if IFT_BLOCKS_AVAILABLE:
+        try:
+            block = lookup_block(result.national_number)
+            if block:
+                result.ift_carrier = block.get("carrier", "")
+                result.ift_modality = modality_label(block.get("modality", ""))
+                result.ift_zona = block.get("zona", "")
+                result.ift_fecha_asignacion = block.get("fecha_asignacion", "")
+                result.ift_service_type = block.get("service_type", "")
+        except Exception as e:
+            result.errors.append(f"ift_blocks: {e}")
     local_info = parse_mx_number(raw)
     result.local_line_type = (
         "CELULAR PROBABLE"

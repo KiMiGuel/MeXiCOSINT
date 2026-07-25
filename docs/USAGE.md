@@ -1,206 +1,229 @@
 # Guía de uso
 
-Esta guía explica cómo ejecutar y usar **MeXiCOSINT** después de instalarlo.
+Esta guía explica cómo usar **MeXiCOSINT** después de instalarlo.
 
----
-
-## Antes de empezar
-
-Asegúrate de estar dentro de la carpeta del proyecto:
-
-```bash
-cd MeXiCOSINT
-```
-
-Activa el entorno virtual:
-
-```bash
-source venv/bin/activate
-```
-
-Si el entorno virtual está activo, tu terminal debería mostrar algo parecido a:
+Para instalarlo, revisa primero:
 
 ```text
-(venv) usuario@equipo:~/MeXiCOSINT$
+docs/INSTALL.md
 ```
 
 ---
 
 ## Ejecutar MeXiCOSINT
 
-La forma recomendada es usar el launcher incluido:
+Si instalaste desde PyPI (pipx o pip):
 
 ```bash
-bash bin/mexicosint
+mexicosint <numero>
 ```
 
-También puedes ejecutar directamente el archivo principal:
+Si clonaste el repositorio, activa el entorno virtual y usa el launcher:
 
 ```bash
-PYTHONPATH=src python3 -m mexicosint
+cd MeXiCOSINT
+source venv/bin/activate
+bash bin/mexicosint <numero>
+```
+
+También puedes ejecutar el módulo directamente:
+
+```bash
+PYTHONPATH=src python3 -m mexicosint <numero>
 ```
 
 ---
 
-## Formato recomendado del número
+## Formato del número
 
 MeXiCOSINT está enfocado en números telefónicos mexicanos.
 
-Formato recomendado:
+Formato internacional recomendado:
 
 ```text
 +52XXXXXXXXXX
 ```
 
-También puede aceptar formato nacional de 10 dígitos:
+También acepta formato nacional de 10 dígitos:
 
 ```text
 XXXXXXXXXX
 ```
 
-Ejemplo de formato internacional:
-
-```text
-+525512345678
-```
-
-Ejemplo de formato nacional:
-
-```text
-5512345678
-```
-
----
-
-## Flujo básico de uso
-
-1. Ejecuta la herramienta:
+Ejemplos:
 
 ```bash
-bash bin/mexicosint
-```
-
-2. Ingresa el número telefónico cuando la herramienta lo solicite.
-
-3. Revisa los resultados mostrados en terminal.
-
-4. Si la herramienta genera reportes, revisa los archivos creados dentro del proyecto.
-
----
-
-## Resultados posibles
-
-Dependiendo de la versión, configuración y API keys disponibles, MeXiCOSINT puede mostrar información como:
-
-* Validación del número
-* Formato nacional
-* Formato internacional
-* Código de país
-* Región o referencia LADA
-* Operador o fuente asociada, si está disponible
-* Información obtenida desde módulos locales
-* Información obtenida desde APIs externas configuradas
-* Consenso aproximado entre fuentes
-* Reportes exportables
-
----
-
-## APIs y resultados limitados
-
-MeXiCOSINT puede funcionar parcialmente sin API keys.
-
-Sin embargo, algunas funciones pueden estar limitadas si no configuraste servicios externos.
-
-Ejemplo:
-
-```text
-Sin API key: validación local y parsing básico
-Con API key: enriquecimiento adicional según el servicio configurado
-```
-
-Para configurar API keys, revisa:
-
-```text
-docs/CONFIG.md
+mexicosint 5512345678
+mexicosint +525512345678
 ```
 
 ---
 
-## Reportes y archivos generados
-
-Si la herramienta genera reportes, pueden aparecer archivos como:
+## Todas las opciones
 
 ```text
-reporte.json
+mexicosint [-h] [--ip ADDRESS] [--dummy-test] [-b]
+           [--set-key SERVICIO KEY] [--list-keys] [--config-path]
+           [--version] [number]
 ```
 
-```text
-reporte.html
-```
-
-```text
-reporte_mapa.html
-```
-
-Los nombres exactos pueden cambiar según la versión.
-
-También puede haber carpetas como:
-
-```text
-reports/
-```
-
-```text
-output/
-```
-
-```text
-results/
-```
-
-Si no aparece ningún reporte, revisa la salida en terminal para confirmar si la función está disponible en tu versión.
+| Opción | Descripción |
+|---|---|
+| `number` | Número telefónico mexicano a escanear |
+| `--ip ADDRESS` | Geolocaliza una IP pública (combinable con número) |
+| `--dummy-test` | Datos de prueba, sin llamadas reales a APIs |
+| `-b`, `--compact-banner` | Fuerza el banner compacto (alias: `--small-banner`) |
+| `--set-key SERVICIO KEY` | Guarda una API key en el archivo de configuración |
+| `--list-keys` | Muestra las API keys guardadas (enmascaradas) |
+| `--config-path` | Muestra la ruta del archivo de configuración |
+| `--version` | Muestra la versión instalada |
+| `-h`, `--help` | Ayuda completa con ejemplos |
 
 ---
 
-## Modo de prueba o desarrollo
+## Ejemplos
 
-Si la versión incluye un modo de prueba, puede ejecutarse con una bandera especial.
-
-Ejemplo:
+Escaneo básico:
 
 ```bash
-PYTHONPATH=src python3 -m mexicosint --dummy-test
+mexicosint 5512345678
 ```
 
-Este modo está pensado para desarrollo local.
+Geolocalizar una IP pública:
 
-No debe considerarse una función principal para usuarios finales.
+```bash
+mexicosint --ip 8.8.8.8
+```
+
+Escaneo combinado número + IP (el orden no importa):
+
+```bash
+mexicosint 5512345678 --ip 8.8.8.8
+mexicosint --ip 8.8.8.8 5512345678
+```
+
+Prueba sin consumir créditos de API:
+
+```bash
+mexicosint --dummy-test 5512345678
+```
+
+Banner compacto:
+
+```bash
+mexicosint -b 5512345678
+```
+
+> Nota: las IPs privadas (192.168.x.x, 10.x.x.x, etc.) se detectan automáticamente y no consumen llamadas a APIs.
 
 ---
 
-## Actualizar antes de usar
+## Gestión de API keys
 
-Para actualizar el repositorio:
+Ya no necesitas editar el archivo de configuración a mano.
 
-```bash
-git pull
-```
-
-Después, si cambiaron las dependencias:
+Guardar una key:
 
 ```bash
-pip install -r requirements.txt
+mexicosint --set-key opencage TU_KEY
+mexicosint --set-key shodan TU_KEY
+mexicosint --set-key abstract TU_KEY
 ```
+
+Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `shodan`, `ip2location`, `ipinfo`, `opencage`.
+
+Ver el estado de las keys (enmascaradas):
+
+```bash
+mexicosint --list-keys
+```
+
+Ver dónde está el archivo de configuración:
+
+```bash
+mexicosint --config-path
+```
+
+El archivo se crea con permisos `0o600` (solo tu usuario puede leerlo).
 
 ---
 
-## Salir del entorno virtual
+## Resultados: base oficial IFT/PNN
 
-Cuando termines:
+Desde la versión 2.4.0, MeXiCOSINT incluye la **base oficial del Plan Nacional de Numeración (IFT)** integrada — más de 177,000 bloques de numeración asignada en México, consultada **offline** (sin internet, sin API keys).
+
+Cada escaneo puede mostrar:
+
+| Campo | Descripción |
+|---|---|
+| Operadora (IFT oficial) | Concesionario dueño del bloque, directo del regulador (ej. Telcel, Telmex, AT&T) |
+| Modalidad (IFT) | Línea fija, Móvil (CPP/MPP) o No geográfico |
+| Asignado (IFT) | Fecha en que el bloque fue asignado al concesionario |
+| Tipo de servicio (IFT) | Solo series no geográficas: 800 (cobro revertido), 900 (sobre cuota), etc. |
+
+### Series no geográficas
+
+Los números 200/300/500/800/900 se identifican automáticamente:
+
+| Serie | Tipo |
+|---|---|
+| 200 | Telefonía satelital |
+| 300 | Cobro compartido |
+| 500 | Números personales |
+| 800 | Cobro revertido (toll-free) |
+| 900 | **Sobre cuota — alerta roja, posible estafa** |
+
+### Actualizar la base IFT
+
+El IFT publica nuevas asignaciones periódicamente. Para actualizar la base local (requiere el repositorio clonado):
 
 ```bash
-deactivate
+cd MeXiCOSINT
+python3 tools/update_ift_blocks.py
 ```
+
+El script descarga el plan vigente desde sns.ift.org.mx y reconstruye la base. Con `--offline` reconstruye sin descargar.
+
+---
+
+## Resultados generales
+
+Dependiendo de la configuración y API keys disponibles, un escaneo puede mostrar:
+
+* Validación del número y formato E.164
+* **Operadora, modalidad y fecha de asignación (IFT, offline)**
+* Región (phonenumbers) y referencia LADA
+* Operadora y ubicación reportadas por APIs (Abstract, NumVerify)
+* Consenso de ubicación entre fuentes
+* Enlaces de investigación OSINT
+* Resultados Shodan (si la key está configurada)
+* Geolocalización aproximada de la localidad + mapa HTML
+* Reporte JSON exportado en `output/reports/`
+
+> Los enlaces OSINT completos también quedan guardados en el reporte JSON.
+
+---
+
+## Sin API keys
+
+MeXiCOSINT funciona parcialmente sin keys:
+
+```text
+Sin API keys: validación, parsing local, base IFT completa, LADA, enlaces OSINT
+Con API keys: enriquecimiento adicional, consenso entre fuentes, mapas, Shodan
+```
+
+La base IFT funciona siempre, con o sin keys.
+
+---
+
+## Modo de prueba
+
+```bash
+mexicosint --dummy-test 5512345678
+```
+
+Usa datos de ejemplo y no realiza llamadas reales a APIs. Pensado para desarrollo y pruebas.
 
 ---
 
@@ -210,94 +233,65 @@ deactivate
 * No trates resultados OSINT como evidencia absoluta.
 * No subas API keys a GitHub.
 * No publiques reportes con información sensible.
+* Un número reportado como "línea fija" de un concesionario mayorista que envía SMS publicitarios es un patrón común de spam.
 * Usa la herramienta únicamente en investigaciones autorizadas, autoauditoría o fines educativos.
 
 ---
 
 ## Solución rápida de problemas
 
-### El comando `bash bin/mexicosint` no funciona
+### `mexicosint: command not found`
 
-Confirma que estás dentro de la carpeta del proyecto:
-
-```bash
-pwd
-```
-
-Confirma que existe el launcher:
+Si instalaste con pipx:
 
 ```bash
-ls -la bin
+pipx ensurepath
 ```
 
-Ejecuta otra vez:
+Cierra y abre la terminal.
 
-```bash
-bash bin/mexicosint
-```
-
----
-
-### Error de dependencias
-
-Vuelve a instalar los requisitos:
+### Error de dependencias (instalación desde repo)
 
 ```bash
 pip install -r requirements.txt
 ```
-
----
-
-### Error con el entorno virtual
-
-Recrea el entorno virtual:
-
-```bash
-rm -rf venv
-```
-
-```bash
-python3 -m venv venv
-```
-
-```bash
-source venv/bin/activate
-```
-
-```bash
-pip install -r requirements.txt
-```
-
----
 
 ### API key no detectada
 
-Revisa que el archivo de configuración exista:
-
 ```bash
-ls -la ~/.mx_osint_config.json
+mexicosint --list-keys
 ```
 
-Revisa permisos:
+Si falta alguna, agrégala con `--set-key`.
+
+### No aparece la información IFT
+
+La base IFT se incluye con el paquete. Si clonaste el repo y falta, regenera:
 
 ```bash
-chmod 600 ~/.mx_osint_config.json
+python3 tools/update_ift_blocks.py --offline
 ```
 
-Revisa la guía de configuración:
+O descarga la versión vigente:
 
-```text
-docs/CONFIG.md
+```bash
+python3 tools/update_ift_blocks.py
 ```
 
 ---
 
 ## Estado
 
-Si todo está correcto, deberías poder ejecutar:
+Si todo está correcto:
 
 ```bash
-bash bin/mexicosint
+mexicosint --version
 ```
 
-Y ver el inicio de MeXiCOSINT en terminal.
+debería mostrar la versión instalada, y:
+
+```bash
+mexicosint 5512345678
+```
+
+debería mostrar el banner, la información del suscriptor y la operadora oficial IFT.
