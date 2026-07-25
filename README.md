@@ -37,6 +37,9 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - Enriquecimiento opcional mediante APIs externas
 - Procesamiento relacionado con IFT/SNS
 - Soporte para módulo QuienHabla.mx
+- **Base oficial IFT/PNN integrada**: 177k+ bloques de numeración asignada, consulta offline
+- Operadora, modalidad y fecha de asignación directo del regulador
+- Series no geográficas 200/300/500/800/900 con alerta de números premium (900)
 - Escaneo combinado número + IP en una sola corrida
 - Gestión de API keys desde la CLI (`--set-key`, `--list-keys`, `--config-path`)
 - Configuración local de API keys
@@ -62,6 +65,7 @@ MeXiCOSINT/
 │       ├── main.py
 │       ├── data/
 │       ├── modules/
+│       │   ├── ift_blocks.py
 │       │   ├── ift_sns.py
 │       │   ├── local_parser.py
 │       │   └── quienhabla.py
@@ -70,6 +74,8 @@ MeXiCOSINT/
 │       │   └── scanner.py
 │       └── utils/
 │           └── validation.py
+├── tools/
+│   └── update_ift_blocks.py
 ├── pyproject.toml
 ├── requirements.txt
 ├── .gitignore
@@ -123,6 +129,14 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+### Actualizar la base IFT (opcional)
+
+El paquete ya incluye la base. Para actualizarla con el plan vigente del IFT:
+
+```bash
+python3 tools/update_ift_blocks.py
+```
+
 ---
 
 ## Uso
@@ -170,7 +184,7 @@ Use `-b`, `--compact-banner`, or the legacy `--small-banner` flag to force the c
 | Guía | Descripción |
 |---|---|
 | [Guía de instalación](docs/INSTALL.md) | Instrucciones de instalación para Kali, Debian, Ubuntu y sistemas similares |
-| [Guía de uso](docs/USAGE.md) | Uso básico y notas de ejecución |
+| [Guía de uso](docs/USAGE.md) | Uso completo: opciones, ejemplos, base IFT, API keys |
 | [Guía de configuración](docs/CONFIG.md) | Configuración local y manejo de API keys |
 | [English documentation](docs/ENGLISH.md) | Full documentation in English |
 
