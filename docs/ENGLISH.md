@@ -28,6 +28,12 @@ The tool can validate numbers, parse Mexican phone formats, use optional externa
 * Local API key configuration
 * Report or output support depending on version
 * Development/testing support depending on version
+* **Official IFT/PNN block database (v2.4.0)** — 177k+ assigned numbering blocks, offline
+* Carrier, modality (fixed/mobile), and assignment date straight from the regulator
+* Non-geographic series 200/300/500/800/900 identification (toll-free, premium-rate alerts)
+* CLI API key management (`--set-key`, `--list-keys`, `--config-path`)
+* Combined number + IP scan in a single run, order-independent
+* Private/reserved IP guard (no wasted API calls on RFC 1918 addresses)
 
 ---
 
@@ -50,6 +56,8 @@ MeXiCOSINT/
 │       ├── modules/
 │       ├── services/
 │       └── utils/
+├── tools/
+│   └── update_ift_blocks.py
 ├── pyproject.toml
 ├── requirements.txt
 ├── .gitignore
@@ -238,6 +246,23 @@ Force the compact ASCII banner:
 mexicosint -b 5512345678
 ```
 
+Combined number + IP scan (order-independent):
+
+```bash
+mexicosint 5512345678 --ip 8.8.8.8
+mexicosint --ip 8.8.8.8 5512345678
+```
+
+API key management:
+
+```bash
+mexicosint --set-key opencage YOUR_KEY
+mexicosint --list-keys
+mexicosint --config-path
+```
+
+> Private IPs (192.168.x.x, 10.x.x.x, ...) are detected automatically and skip API calls.
+
 If you cloned the repository, make sure you are inside the project folder and the virtual environment is active, then use the launcher:
 
 ```bash
@@ -312,6 +337,31 @@ Depending on the version, configuration, and available API keys, MeXiCOSINT may 
 * External API results, if configured
 * Approximate consensus between sources
 * Exportable reports
+
+---
+
+## Official IFT/PNN Database (v2.4.0)
+
+MeXiCOSINT ships with the official Plan Nacional de Numeracion block registry from the IFT (Mexico's telecom regulator): 177,000+ assigned numbering blocks, queried **offline** — no internet, no API keys.
+
+Every scan can show:
+
+| Field | Description |
+|---|---|
+| Operadora (IFT oficial) | Concessionaire that owns the block, from the regulator (e.g. Telcel, Telmex, AT&T) |
+| Modalidad (IFT) | Fixed line, Mobile (CPP/MPP), or Non-geographic |
+| Asignado (IFT) | Date the block was assigned to the concessionaire |
+| Tipo de servicio (IFT) | Non-geographic series only: 800 (toll-free), 900 (premium-rate), etc. |
+
+Non-geographic series are identified automatically; **900 numbers trigger a red premium-rate fraud warning**.
+
+Refresh the local database (requires a repo clone):
+
+```bash
+python3 tools/update_ift_blocks.py
+```
+
+The script downloads the current plan from sns.ift.org.mx and rebuilds the compact lookup files. Use `--offline` to rebuild without downloading.
 
 ---
 
@@ -404,7 +454,7 @@ Without API keys:
 - Local validation
 - Basic parsing
 - National and international formatting
-- Limited results
+- IFT/PNN block lookup (offline, always available)
 
 With API keys:
 - Additional enrichment
