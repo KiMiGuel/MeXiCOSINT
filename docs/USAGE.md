@@ -139,7 +139,7 @@ El archivo se crea con permisos `0o600` (solo tu usuario puede leerlo).
 
 ## Resultados: base oficial IFT/PNN
 
-Desde la versión 2.5.0, MeXiCOSINT incluye la **base oficial del Plan Nacional de Numeración (IFT)** integrada — más de 177,000 bloques de numeración asignada en México, consultada **offline** (sin internet, sin API keys).
+Desde la versión 2.5.1, MeXiCOSINT incluye la **base oficial del Plan Nacional de Numeración (IFT)** integrada — más de 177,000 bloques de numeración asignada en México, consultada **offline** (sin internet, sin API keys).
 
 Cada escaneo puede mostrar:
 
