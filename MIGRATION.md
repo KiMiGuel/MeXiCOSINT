@@ -1,18 +1,18 @@
-# Migration Instructions
+# Instrucciones de migración
 
-MeXiCOSINT now uses a production-style `src/` package layout.
+MeXiCOSINT usa una estructura de paquete `src/` lista para distribución.
 
-## What changed
+## Qué cambió
 
-- `mexicosint_v2.2.5.py` was replaced by `src/mexicosint/main.py`.
-- The command-line entry point is now `src/mexicosint/cli.py`.
-- Existing helper modules moved from `modules/` to `src/mexicosint/modules/`.
-- Service-facing wrappers live in `src/mexicosint/services/`.
-- Shared helpers live in `src/mexicosint/utils/`.
-- Package metadata and the console script are defined in `pyproject.toml`.
-- Local IFT data moved into `src/mexicosint/data/` so it can be packaged.
+- `mexicosint_v2.2.5.py` fue reemplazado por `src/mexicosint/main.py`.
+- El punto de entrada de la CLI ahora vive en `src/mexicosint/cli.py`.
+- Los módulos auxiliares se movieron de `modules/` a `src/mexicosint/modules/`.
+- Los wrappers de servicios viven en `src/mexicosint/services/`.
+- Los helpers compartidos viven en `src/mexicosint/utils/`.
+- La metadata del paquete y el script de consola se definen en `pyproject.toml`.
+- Los datos locales IFT/LADA viven en `src/mexicosint/data/` para incluirse en el paquete.
 
-## Install for development
+## Instalación para desarrollo
 
 ```bash
 python3 -m venv venv
@@ -20,32 +20,31 @@ source venv/bin/activate
 pip install -e .
 ```
 
-## Run after migration
+## Ejecutar después de la migración
 
-Use the installed command:
+Usa el comando instalado:
 
 ```bash
 mexicosint 5512345678
-mexicosint --ip 8.8.8.8
-mexicosint --dummy-test 5512345678
+mexicosint --dummy-test 6634647308
 mexicosint -b 5512345678
 ```
 
-Run without installing:
+Ejecutar sin instalar:
 
 ```bash
 PYTHONPATH=src python3 -m mexicosint 5512345678
 ```
 
-Or use the repository launcher:
+O usar el launcher del repositorio:
 
 ```bash
 bash bin/mexicosint 5512345678
 ```
 
-## Import changes
+## Cambios de imports
 
-Use absolute package imports:
+Usa imports absolutos del paquete:
 
 ```python
 from mexicosint.modules.local_parser import parse_mx_number

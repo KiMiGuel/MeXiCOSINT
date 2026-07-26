@@ -27,6 +27,13 @@ def build_parser() -> argparse.ArgumentParser:
         description="OSINT para numeros telefonicos Mexicanos.",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,
+    )
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help="Muestra esta ayuda y sale.",
     )
     parser.add_argument(
         "number",
@@ -66,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
+        help="Muestra la version instalada y sale.",
     )
     return parser
 

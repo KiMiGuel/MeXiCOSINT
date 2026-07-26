@@ -36,6 +36,7 @@ Ejemplo:
 {
   "abstract_phone_intelligence": "TU_ABSTRACTAPI_KEY",
   "numverify": "TU_NUMVERIFY_KEY",
+  "opencage": "TU_OPENCAGE_KEY",
   "geoapify": "TU_GEOAPIFY_KEY",
   "google_places": "TU_GOOGLE_PLACES_KEY",
   "ipqualityscore": "TU_IPQUALITYSCORE_KEY"
@@ -66,11 +67,12 @@ Sin embargo, algunas funciones tendrán mejores resultados si se configuran serv
 
 | Servicio    | Función                                                      |
 | ----------- | ------------------------------------------------------------ |
-| AbstractAPI | Validación y enriquecimiento de números telefónicos          |
-| NumVerify   | Validación secundaria de números telefónicos                 |
-| Geoapify    | Geocodificación de localidad de numeración mexicana          |
-| Google Places | Posibles fichas públicas de negocio                        |
-| IPQualityScore | Validación, reputación y abuso telefónico                 |
+| AbstractAPI | Validación y enriquecimiento telefónico como evidencia de apoyo |
+| NumVerify   | Validación secundaria como evidencia de apoyo                |
+| OpenCage    | Geocodificación primaria opcional de localidad IFT/LADA      |
+| Geoapify    | Geocodificación fallback opcional de localidad IFT/LADA      |
+| Google Places | Posibles fichas públicas de negocio por número E.164       |
+| IPQualityScore | Validación, reputación y abuso telefónico como evidencia de apoyo |
 
 ---
 
@@ -85,13 +87,13 @@ Sin API keys:
 - Validación local
 - Parsing básico
 - Formato nacional/internacional
-- Resultados limitados
+- Base IFT/LADA y enlaces OSINT
 
 Con API keys:
 - Enriquecimiento adicional
 - Validación secundaria
-- Más fuentes de comparación
-- Mapas de localidad de numeración y reputación telefónica
+- Geocodificación OpenCage/Geoapify cuando hay localidad concreta
+- Fichas públicas de negocio y reputación telefónica
 ```
 
 ---
@@ -186,8 +188,12 @@ Si quieres mostrar un ejemplo en la documentación, usa valores falsos:
 
 ```json
 {
-  "abstractapi_key": "TU_ABSTRACTAPI_KEY",
-  "numverify_key": "TU_NUMVERIFY_KEY"
+  "abstract_phone_intelligence": "TU_ABSTRACTAPI_KEY",
+  "numverify": "TU_NUMVERIFY_KEY",
+  "opencage": "TU_OPENCAGE_KEY",
+  "geoapify": "TU_GEOAPIFY_KEY",
+  "google_places": "TU_GOOGLE_PLACES_KEY",
+  "ipqualityscore": "TU_IPQUALITYSCORE_KEY"
 }
 ```
 
