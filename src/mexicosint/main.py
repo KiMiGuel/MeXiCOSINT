@@ -5,7 +5,7 @@ MeXicOSINT v2.5.1
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
 
-Cambios v2.5.0:
+Cambios v2.5.1:
   - Normalizador mexicano compartido
   - Geoapify como geocodificador de localidad de numeracion
   - Google Places e IPQualityScore agregados como proveedores opcionales
