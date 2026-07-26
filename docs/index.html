@@ -59,6 +59,9 @@
   h2{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:800;margin-bottom:16px;letter-spacing:-.3px}
   .lead{color:var(--muted);max-width:720px;font-size:1.05rem}
 
+  .video-wrap{margin-top:30px;position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:14px;border:1px solid var(--line);background:#070a08;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .video-wrap iframe{position:absolute;inset:0;width:100%;height:100%}
+
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:36px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
   .card h3{font-size:1.05rem;margin:12px 0 8px}
@@ -136,6 +139,7 @@
       <a href="#ift">Base IFT</a>
       <a href="#porque">Por qué</a>
       <a href="#instalar">Instalar</a>
+      <a href="#demo">Demo</a>
       <a href="#llaves">Llaves API</a>
       <a href="https://github.com/KiMiGuel/MeXiCOSINT">GitHub</a>
     </div>
@@ -149,6 +153,7 @@
     <p class="tagline">Valida, analiza y enriquece cualquier número de México — con la <b>base oficial del IFT integrada</b>. Sin internet. Sin API keys. Directo del regulador.</p>
     <div class="cta">
       <a class="btn btn-p" href="#instalar">Instalar ahora</a>
+      <a class="btn btn-s" href="#demo">Ver demo</a>
       <a class="btn btn-s" href="https://github.com/KiMiGuel/MeXiCOSINT">Ver en GitHub</a>
     </div>
     <div class="install">
@@ -159,6 +164,17 @@ mexicosint 5512345678</pre>
     </div>
   </div>
 </header>
+
+<section id="demo">
+  <div class="wrap">
+    <p class="kicker">Demo</p>
+    <h2>MeXiCOSINT en acción</h2>
+    <p class="lead">Una demo directa del flujo real: instalación, ejecución y lectura de resultados. Sin promesas mágicas, sin humo de startup, solo la herramienta trabajando.</p>
+    <div class="video-wrap">
+      <iframe src="https://www.youtube.com/embed/ah9AklryVrg" title="MeXiCOSINT demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </div>
+  </div>
+</section>
 
 <section id="que-hace">
   <div class="wrap">
