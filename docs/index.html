@@ -302,6 +302,29 @@ mexicosint --set-key abstract TU_KEY</div>
       <p>Listo. A partir de ese momento, cada escaneo incluye el voto de AbstractAPI en el consenso.</p>
       <a class="signup" href="https://app.abstractapi.com/users/signup?target=/api/phone-validation/pricing/select">Crear cuenta gratis en AbstractAPI</a>
     </div>
+
+    <div class="api">
+      <div class="api-head">
+        <h3>NumVerify — Validación global de números</h3>
+        <span class="pill">TELÉFONOS</span>
+        <span class="pill">GRATIS</span>
+      </div>
+      <p><b>Qué hace:</b> valida números de 232 países contra los registros de numeración internacionales: validez, formato local e internacional, operadora, tipo de línea y país.</p>
+      <p><b>Cómo se integra:</b> NumVerify es la tercera fuente del <b>consenso ponderado multi-fuente</b> de MeXiCOSINT. Con AbstractAPI + NumVerify activos, el consenso de validez y ubicación alcanza su máximo nivel de confianza.</p>
+      <span class="free">Nivel gratuito: 100 validaciones / mes</span>
+      <p><b>Guía de registro</b> (el sitio está en inglés — así lo haces):</p>
+      <ol>
+        <li>Abre el enlace de registro — cae directo en el plan <code>"Free"</code> (0 USD, sin tarjeta).</li>
+        <li>Llena el formulario: nombre en <code>"Full Name"</code>, correo en <code>"Email"</code> y contraseña en <code>"Password"</code>.</li>
+        <li>Pulsa <code>"Sign Up"</code>. NumVerify crea tu cuenta al instante, sin confirmación de correo.</li>
+        <li>Entra a tu panel (<code>"Dashboard"</code>): tu llave aparece arriba como <code>"Your API Access Key"</code>. Cópiala.</li>
+        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+      </ol>
+      <div class="cmd"><span class="c"># guardar la llave una sola vez</span>
+mexicosint --set-key numverify TU_KEY</div>
+      <p>Listo. El consenso multi-fuente ahora vota con tres fuentes independientes.</p>
+      <a class="signup" href="https://numverify.com/signup/free/monthly">Crear cuenta gratis en NumVerify</a>
+    </div>
   </div>
 </section>
 
