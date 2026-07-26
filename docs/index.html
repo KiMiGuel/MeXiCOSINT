@@ -367,7 +367,21 @@ mexicosint --set-key numverify TU_KEY</div>
       </div>
       <p><b>Qué hace:</b> busca posibles fichas públicas asociadas al número E.164 normalizado y normaliza nombre, categoría, dirección pública, sitio web, Maps URL y place ID.</p>
       <p><b>Importante:</b> una posible ficha pública no identifica al suscriptor.</p>
-      <div class="cmd">mexicosint --set-key google_places TU_KEY</div>
+      <p><b>Guía de registro</b>:</p>
+      <ol>
+        <li>Abre Google Cloud Console.</li>
+        <li>Inicia sesión con una cuenta de Google.</li>
+        <li>Crea o selecciona un proyecto.</li>
+        <li>Activa la facturación para ese proyecto.</li>
+        <li>Abre <code>"APIs & Services"</code>.</li>
+        <li>Habilita <code>"Places API (New)"</code>.</li>
+        <li>Abre <code>"Credentials"</code>.</li>
+        <li>Crea una API key.</li>
+        <li>Restringe la key a Places API.</li>
+        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+      </ol>
+      <div class="cmd">mexicosint --set-key google_places TU_API_KEY</div>
+      <a class="signup" href="https://console.cloud.google.com/">Abrir Google Cloud Console</a>
     </div>
 
     <div class="api">
@@ -377,7 +391,17 @@ mexicosint --set-key numverify TU_KEY</div>
         <span class="pill">OPCIONAL</span>
       </div>
       <p><b>Qué hace:</b> agrega evidencia normalizada de validez, actividad, riesgo, abuso reciente, VoIP, operadora y tipo de línea.</p>
-      <div class="cmd">mexicosint --set-key ipqualityscore TU_KEY</div>
+      <p><b>Guía de registro</b>:</p>
+      <ol>
+        <li>Abre la página de registro de IPQualityScore.</li>
+        <li>Crea una cuenta.</li>
+        <li>Verifica el correo si el sitio lo solicita.</li>
+        <li>Abre el panel de tu cuenta.</li>
+        <li>Localiza y copia la API key privada.</li>
+        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+      </ol>
+      <div class="cmd">mexicosint --set-key ipqualityscore TU_API_KEY</div>
+      <a class="signup" href="https://www.ipqualityscore.com/create-account">Registrarse en IPQualityScore</a>
     </div>
   </div>
 </section>
