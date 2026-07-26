@@ -100,7 +100,7 @@ def save_csvs(blob: bytes, prefix: str) -> list:
 def download() -> None:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     session = requests.Session()
-    session.headers.update({"User-Agent": "MeXicOSINT/2.5.0 (OSINT research)"})
+    session.headers.update({"User-Agent": "MeXicOSINT/2.5.1 (OSINT research)"})
 
     print("[*] Descargando Plan Nacional de Numeracion (publico)...")
     for p in save_csvs(
