@@ -23,6 +23,8 @@
   a{color:var(--green);text-decoration:none}
   a:hover{text-decoration:underline}
   .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* NAV */
   nav{position:sticky;top:0;background:rgba(11,15,12,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);z-index:10}
   nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
   .logo{font-weight:800;font-size:1.15rem;letter-spacing:.5px}
@@ -30,6 +32,8 @@
   nav .links a{color:var(--muted);margin-left:22px;font-size:.95rem}
   nav .links a:hover{color:var(--txt);text-decoration:none}
   .badge-ver{font-family:var(--mono);font-size:.75rem;color:var(--green);border:1px solid var(--green2);border-radius:999px;padding:2px 10px;margin-left:10px}
+
+  /* HERO */
   header{padding:80px 0 60px;text-align:center;background:radial-gradient(ellipse at 50% -10%,#14251a 0%,var(--bg) 60%)}
   header img.banner{max-width:min(680px,90%);height:auto;border-radius:12px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.5)}
   h1{font-size:clamp(1.9rem,4.5vw,3rem);margin:36px 0 14px;font-weight:800;letter-spacing:-.5px}
@@ -41,16 +45,20 @@
   .btn-p:hover{background:#23c762;text-decoration:none}
   .btn-s{border:1px solid var(--line);color:var(--txt);background:var(--panel)}
   .btn-s:hover{border-color:var(--green2);text-decoration:none}
+
   .install{margin:44px auto 0;max-width:640px;background:#070a08;border:1px solid var(--line);border-radius:12px;text-align:left;overflow:hidden}
   .install .bar{display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line)}
   .install .bar i{width:11px;height:11px;border-radius:50%;display:block}
   .install .bar i:nth-child(1){background:#ff5f57}.install .bar i:nth-child(2){background:#febc2e}.install .bar i:nth-child(3){background:#28c840}
   .install pre{padding:16px 18px;font-family:var(--mono);font-size:.9rem;color:#b6f2c9;overflow-x:auto}
   .install .c{color:#5f7a67}
+
+  /* SECTIONS */
   section{padding:72px 0}
   .kicker{font-family:var(--mono);color:var(--green);font-size:.8rem;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
   h2{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:800;margin-bottom:16px;letter-spacing:-.3px}
   .lead{color:var(--muted);max-width:720px;font-size:1.05rem}
+
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:36px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
   .card h3{font-size:1.05rem;margin:12px 0 8px}
@@ -58,6 +66,8 @@
   .card .ico{font-size:1.5rem}
   .card.star{border-color:var(--green2);background:linear-gradient(160deg,#12201580,var(--panel))}
   .card.star .pill{display:inline-block;font-family:var(--mono);font-size:.68rem;color:#04120a;background:var(--green);border-radius:6px;padding:2px 8px;margin-bottom:6px;font-weight:700}
+
+  /* IFT feature */
   .ift{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .ift-flex{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center;margin-top:28px}
   @media(max-width:840px){.ift-flex{grid-template-columns:1fr}}
@@ -73,18 +83,42 @@
   .ift li{padding:8px 0 8px 28px;position:relative;color:var(--muted)}
   .ift li::before{content:"▸";color:var(--green);position:absolute;left:0}
   .ift li b{color:var(--txt)}
+
+  /* Comparison */
   table{width:100%;border-collapse:collapse;margin-top:32px;font-size:.95rem}
   th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--line)}
   th{color:var(--muted);font-weight:600;font-size:.85rem;text-transform:uppercase;letter-spacing:1px}
   td:first-child{color:var(--muted)}
   .yes{color:var(--green);font-weight:700}
   .no{color:var(--red)}
+  .mx td{background:rgba(29,185,84,.05)}
+  .mx td:first-child{color:var(--txt);font-weight:700}
+
+  /* quickstart */
   .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:36px}
   .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
   .step .n{font-family:var(--mono);color:var(--green);font-size:1.6rem;font-weight:800}
   .step h3{margin:10px 0 6px;font-size:1rem}
   .step p{color:var(--muted);font-size:.9rem}
   .step code{font-family:var(--mono);background:#070a08;border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:.8rem;color:#b6f2c9}
+
+  /* API keys */
+  .apis{background:var(--bg2);border-top:1px solid var(--line)}
+  .api{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;margin-top:26px}
+  .api-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .api-head h3{font-size:1.15rem;font-weight:800}
+  .api-head .pill{font-family:var(--mono);font-size:.68rem;color:var(--green);border:1px solid var(--green2);border-radius:6px;padding:2px 8px;font-weight:700}
+  .api p{color:var(--muted);font-size:.93rem;margin-bottom:10px}
+  .api p b, .api li b{color:var(--txt)}
+  .api .free{display:inline-block;font-family:var(--mono);font-size:.75rem;color:#b6f2c9;background:#070a08;border:1px solid var(--line);border-radius:6px;padding:3px 10px;margin:2px 0 12px}
+  .api ol{margin:10px 0 14px 22px;color:var(--muted);font-size:.92rem}
+  .api ol li{padding:4px 0}
+  .api ol code, .api p code{font-family:var(--mono);background:#070a08;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.8rem;color:#b6f2c9}
+  .api .cmd{font-family:var(--mono);background:#070a08;border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:.85rem;color:#b6f2c9;margin:10px 0;overflow-x:auto}
+  .api .cmd .c{color:#5f7a67}
+  .api .signup{display:inline-block;margin-top:6px;padding:9px 20px;border-radius:8px;font-weight:700;font-size:.88rem;background:var(--green);color:#04120a}
+  .api .signup:hover{background:#23c762;text-decoration:none}
+
   footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--muted);font-size:.9rem}
   footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px}
   footer a{margin-right:18px}
@@ -100,6 +134,7 @@
       <a href="#ift">Base IFT</a>
       <a href="#porque">Por qué</a>
       <a href="#instalar">Instalar</a>
+      <a href="#llaves">Llaves API</a>
       <a href="https://github.com/KiMiGuel/MeXiCOSINT">GitHub</a>
     </div>
   </div>
@@ -235,6 +270,37 @@ mexicosint 5512345678</pre>
         <h3>Opcional: API keys</h3>
         <p><code>mexicosint --set-key opencage TU_KEY</code><br>Enriquecimiento extra cuando lo necesites.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="apis" id="llaves">
+  <div class="wrap">
+    <p class="kicker">Llaves API</p>
+    <h2>Potencia MeXiCOSINT al 100% con llaves API</h2>
+    <p class="lead">La base oficial del IFT y la validación local funcionan <b>sin configurar nada</b>. Pero al agregar llaves API gratuitas, MeXiCOSINT desbloquea su capacidad completa: validación en tiempo real, geolocalización de IPs, consenso multi-fuente y mapas. Aquí documentamos cada servicio, cómo integrarlo y cómo registrarte — paso a paso y en español.</p>
+
+    <div class="api">
+      <div class="api-head">
+        <h3>AbstractAPI — Validación de teléfonos</h3>
+        <span class="pill">TELÉFONOS</span>
+        <span class="pill">GRATIS</span>
+      </div>
+      <p><b>Qué hace:</b> valida números telefónicos en tiempo real contra la red telefónica: formato, línea activa, operadora actual y tipo de línea.</p>
+      <p><b>Cómo se integra:</b> AbstractAPI es una de las fuentes del <b>consenso ponderado multi-fuente</b> de MeXiCOSINT. Su veredicto vota junto a phonenumbers y NumVerify para determinar validez y ubicación consensuada con nivel de confianza.</p>
+      <span class="free">Nivel gratuito: 250 validaciones / mes</span>
+      <p><b>Guía de registro</b> (el sitio está en inglés — así lo haces):</p>
+      <ol>
+        <li>Abre el enlace de registro y llena el formulario: correo en <code>"Email"</code> y contraseña en <code>"Password"</code>. También puedes entrar con <code>"Continue with Google"</code>.</li>
+        <li>Pulsa <code>"Sign Up"</code>. AbstractAPI te lleva directo a la selección de plan de <b>Phone Validation API</b>.</li>
+        <li>Elige el plan <code>"Free"</code> (0 USD, sin tarjeta) y confirma con <code>"Subscribe"</code> o <code>"Select"</code>.</li>
+        <li>En tu panel (<code>"Dashboard"</code>) verás tu llave junto a <code>"API Key"</code>. Cópiala con el botón de copiar.</li>
+        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+      </ol>
+      <div class="cmd"><span class="c"># guardar la llave una sola vez</span>
+mexicosint --set-key abstract TU_KEY</div>
+      <p>Listo. A partir de ese momento, cada escaneo incluye el voto de AbstractAPI en el consenso.</p>
+      <a class="signup" href="https://app.abstractapi.com/users/signup?target=/api/phone-validation/pricing/select">Crear cuenta gratis en AbstractAPI</a>
     </div>
   </div>
 </section>
