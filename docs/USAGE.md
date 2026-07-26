@@ -95,7 +95,7 @@ mexicosint 5512345678
 Prueba sin consumir créditos de API:
 
 ```bash
-mexicosint --dummy-test 5512345678
+mexicosint --dummy-test 6634647308
 ```
 
 Banner compacto:
@@ -104,10 +104,6 @@ Banner compacto:
 mexicosint -b 5512345678
 ```
 
-> Nota: las IPs privadas (192.168.x.x, 10.x.x.x, etc.) se detectan automáticamente y no consumen llamadas a APIs.
-
----
-
 ## Gestión de API keys
 
 Ya no necesitas editar el archivo de configuración a mano.
@@ -115,13 +111,15 @@ Ya no necesitas editar el archivo de configuración a mano.
 Guardar una key:
 
 ```bash
+mexicosint --set-key opencage TU_KEY
 mexicosint --set-key geoapify TU_KEY
 mexicosint --set-key google_places TU_KEY
 mexicosint --set-key ipqualityscore TU_KEY
 mexicosint --set-key abstract TU_KEY
+mexicosint --set-key numverify TU_KEY
 ```
 
-Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `geoapify`, `google_places`, `ipqualityscore`.
+Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `opencage`, `geoapify`, `google_places`, `ipqualityscore`.
 
 Ver el estado de las keys (enmascaradas):
 
@@ -184,11 +182,11 @@ Dependiendo de la configuración y API keys disponibles, un escaneo puede mostra
 * Validación del número y formato E.164
 * **Operadora, modalidad y fecha de asignación (IFT, offline)**
 * Región (phonenumbers) y referencia LADA
-* Operadora y ubicación reportadas por APIs (Abstract, NumVerify)
-* Consenso de ubicación entre fuentes
+* Operadora y ubicación reportadas por APIs (AbstractAPI, NumVerify, IPQualityScore) como evidencia de apoyo o conflicto
+* Localidad canónica IFT/LADA con atribución clara de fuente
 * Enlaces de investigación OSINT
-* Geoapify para localidad de numeración + mapa HTML
-* Google Places para posibles fichas públicas de negocio
+* OpenCage, Geoapify o Nominatim para geocodificar la localidad IFT/LADA + mapa HTML
+* Google Places para posibles fichas públicas de negocio buscadas por número E.164
 * IPQualityScore para reputación y abuso telefónico
 * Reporte JSON exportado en `output/reports/`
 
@@ -202,20 +200,44 @@ MeXiCOSINT funciona parcialmente sin keys:
 
 ```text
 Sin API keys: validación, parsing local, base IFT completa, LADA, enlaces OSINT
-Con API keys: enriquecimiento adicional, consenso entre fuentes, mapas y reputación telefónica
+Con API keys: enriquecimiento adicional, geocodificación, fichas públicas de negocio y reputación telefónica
 ```
 
 La base IFT funciona siempre, con o sin keys.
 
 ---
 
+## Localidad y geocodificación
+
+La localidad mexicana se resuelve en este orden:
+
+1. Normaliza el número.
+2. Consulta exacta de bloque IFT.
+3. Ciudad/municipio y estado canónicos desde IFT.
+4. LADA solo como respaldo o evidencia de apoyo.
+5. Geocodificación únicamente de una consulta concreta: `<ciudad o municipio>, <estado>, Mexico`.
+
+AbstractAPI, NumVerify e IPQualityScore pueden aportar evidencia o conflicto, pero no reemplazan una localidad concreta de IFT/LADA. Valores vagos como `Mexico`, `NorthWest`, regiones genéricas, tipo de línea o país sin ciudad no se envían a geocodificadores.
+
+OpenCage se usa como geocodificador primario si tiene key. Geoapify se usa como fallback con key. Nominatim queda como fallback final sin key.
+
+Google Places busca el número E.164 normalizado directamente, con formato de búsqueda como `+52 664 483 7308`. IFT/LADA solo ayuda a validar o sesgar regionalmente una ficha pública candidata.
+
+---
+
+## Enlaces OSINT
+
+Los enlaces generados usan variantes exactas del número: WhatsApp por `wa.me`, búsqueda Google del E.164, dígitos internacionales, dígitos nacionales, formato espaciado y búsquedas `site:` para Facebook, TikTok, X y Twitter.
+
+---
+
 ## Modo de prueba
 
 ```bash
-mexicosint --dummy-test 5512345678
+mexicosint --dummy-test 6634647308
 ```
 
-Usa datos de ejemplo y no realiza llamadas reales a APIs. Pensado para desarrollo y pruebas.
+Usa datos de ejemplo y no realiza llamadas reales a APIs. Pensado para desarrollo y pruebas; también valida que el flujo de proveedores pueda ejecutarse sin keys reales.
 
 ---
 
@@ -286,4 +308,4 @@ debería mostrar la versión instalada, y:
 mexicosint 5512345678
 ```
 
-debería mostrar el banner, la información del suscriptor y la operadora oficial IFT.
+debería mostrar el banner, la información del número y la operadora oficial IFT.
