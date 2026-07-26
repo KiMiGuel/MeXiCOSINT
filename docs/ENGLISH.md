@@ -28,7 +28,7 @@ The tool can validate numbers, parse Mexican phone formats, use optional externa
 * Local API key configuration
 * Report or output support depending on version
 * Development/testing support depending on version
-* **Official IFT/PNN block database (v2.4.0)** — 177k+ assigned numbering blocks, offline
+* **Official IFT/PNN block database (v2.5.0)** — 177k+ assigned numbering blocks, offline
 * Carrier, modality (fixed/mobile), and assignment date straight from the regulator
 * Non-geographic series 200/300/500/800/900 identification (toll-free, premium-rate alerts)
 * CLI API key management (`--set-key`, `--list-keys`, `--config-path`)
@@ -249,14 +249,14 @@ mexicosint -b 5512345678
 Combined number + IP scan (order-independent):
 
 ```bash
-mexicosint 5512345678 --ip 8.8.8.8
-mexicosint --ip 8.8.8.8 5512345678
+mexicosint 5512345678
+mexicosint "+52 663 464 7308"
 ```
 
 API key management:
 
 ```bash
-mexicosint --set-key opencage YOUR_KEY
+mexicosint --set-key geoapify YOUR_KEY
 mexicosint --list-keys
 mexicosint --config-path
 ```
@@ -340,7 +340,7 @@ Depending on the version, configuration, and available API keys, MeXiCOSINT may 
 
 ---
 
-## Official IFT/PNN Database (v2.4.0)
+## Official IFT/PNN Database (v2.5.0)
 
 MeXiCOSINT ships with the official Plan Nacional de Numeracion block registry from the IFT (Mexico's telecom regulator): 177,000+ assigned numbering blocks, queried **offline** — no internet, no API keys.
 
@@ -373,10 +373,9 @@ Some features may depend on external API keys.
 | ----------- | ----------------------------------------------- |
 | AbstractAPI | Phone validation and enrichment                 |
 | NumVerify   | Secondary phone validation                      |
-| Shodan      | Optional enrichment related to exposed services |
-| IPInfo      | IP metadata enrichment                          |
-| IP2Location | IP metadata enrichment                          |
-| OpenCage    | Geocoding and map support                       |
+| Geoapify    | Mexican numbering-locality geocoding           |
+| Google Places | Optional public business-listing lookup      |
+| IPQualityScore | Optional phone validation and abuse evidence |
 
 MeXiCOSINT can work partially without API keys, but some results may be limited.
 
@@ -410,10 +409,9 @@ Example configuration:
 {
   "abstractapi_key": "YOUR_ABSTRACTAPI_KEY",
   "numverify_key": "YOUR_NUMVERIFY_KEY",
-  "shodan_key": "YOUR_SHODAN_KEY",
-  "ipinfo_key": "YOUR_IPINFO_KEY",
-  "ip2location_key": "YOUR_IP2LOCATION_KEY",
-  "opencage_key": "YOUR_OPENCAGE_KEY"
+  "geoapify": "YOUR_GEOAPIFY_KEY",
+  "google_places": "YOUR_GOOGLE_PLACES_KEY",
+  "ipqualityscore": "YOUR_IPQUALITYSCORE_KEY"
 }
 ```
 

@@ -40,7 +40,6 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - **Base oficial IFT/PNN integrada**: 177k+ bloques de numeración asignada, consulta offline
 - Operadora, modalidad y fecha de asignación directo del regulador
 - Series no geográficas 200/300/500/800/900 con alerta de números premium (900)
-- Escaneo combinado número + IP en una sola corrida
 - Gestión de API keys desde la CLI (`--set-key`, `--list-keys`, `--config-path`)
 - Configuración local de API keys
 - Soporte para reportes o salidas generadas según la versión
@@ -70,7 +69,6 @@ MeXiCOSINT/
 │       │   ├── local_parser.py
 │       │   └── quienhabla.py
 │       ├── services/
-│       │   ├── ip_geo.py
 │       │   └── scanner.py
 │       └── utils/
 │           └── validation.py
@@ -148,17 +146,10 @@ mexicosint 5512345678
 mexicosint -b 5512345678
 ```
 
-Escaneo combinado número + IP (el orden no importa):
-
-```bash
-mexicosint 5512345678 --ip 8.8.8.8
-mexicosint --ip 8.8.8.8 5512345678
-```
-
 Gestión de API keys desde la CLI:
 
 ```bash
-mexicosint --set-key opencage TU_KEY
+mexicosint --set-key geoapify TU_KEY
 mexicosint --list-keys
 mexicosint --config-path
 ```
@@ -198,10 +189,11 @@ Algunas funciones pueden depender de API keys externas.
 |---|---|
 | AbstractAPI | Validación y enriquecimiento de números telefónicos |
 | NumVerify | Validación secundaria de números |
-| Shodan | Enriquecimiento opcional relacionado con servicios expuestos |
-| IPInfo | Enriquecimiento de metadatos IP |
-| IP2Location | Enriquecimiento de metadatos IP |
-| OpenCage | Geocodificación y soporte para mapas |
+| Geoapify | Geocodificación de localidad de numeración mexicana |
+| Google Places | Posibles fichas públicas de negocio, sin atribución de suscriptor |
+| IPQualityScore | Validación, reputación y abuso telefónico |
+
+Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.
 
 Las API keys deben mantenerse en tu entorno local. No las subas a GitHub.
 

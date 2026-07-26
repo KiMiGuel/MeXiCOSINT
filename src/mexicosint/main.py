@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.4.0
+MeXicOSINT v2.5.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
 
-Cambios v2.4.0:
+Cambios v2.5.0:
+  - Normalizador mexicano compartido
+  - Geoapify como geocodificador de localidad de numeracion
+  - Google Places e IPQualityScore agregados como proveedores opcionales
+  - Modo IP y proveedores IP removidos
+
+Cambios anteriores:
   - Base oficial IFT/PNN integrada (178k bloques de numeracion)
   - Consulta offline de operadora, modalidad y fecha de asignacion
   - Identificacion de series no geograficas 200/300/500/800/900
   - Alerta de fraude para numeros 900 (cobro premium)
   - Herramienta tools/update_ift_blocks.py para actualizar la base
-
-Cambios v2.3.0:
-  - Nuevas flags CLI: --set-key, --list-keys, --config-path
-  - API keys gestionables desde la linea de comandos (sin editar JSON a mano)
-  - Escaneo combinado numero + --ip en una sola corrida (orden independiente)
-  - IPs privadas/reservadas se detectan y no consumen llamadas a APIs
-  - Link Paginas Blancas removido: dominio muerto/reutilizado (FIX #11)
 
 Correcciones v2.2.4:
   - Validacion usa is_valid_number() ademas de is_possible_number()
@@ -27,7 +26,6 @@ Correcciones v2.2.4:
   - Portabilidad corregida: implementada en 2008, marcado a 10 digitos en 2019
   - Abstract Phone Intelligence y Phone Validation usan keys separadas
   - Reporte JSON limpio: excluye report_path y report_hash del payload
-  - Shodan ahora busca con disclaimer claro (banners != propiedad del telefono)
   - Links OSINT corregidos: solo enlaces que realmente buscan por numero
   - Config ahora crea archivo con permisos 0o600 (solo lectura propietario)
 """
@@ -46,8 +44,11 @@ from pathlib import Path
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 
-from mexicosint.utils.validation import is_valid_ip
+from mexicosint.numbering import normalize_mx_number
 from mexicosint.modules.local_parser import parse_mx_number
+from mexicosint.providers.geoapify import GeoapifyProvider
+from mexicosint.providers.google_places import GooglePlacesProvider
+from mexicosint.providers.ipqualityscore import IPQualityScoreProvider
 
 try:
     from mexicosint.modules.ift_blocks import lookup_block, modality_label
@@ -63,12 +64,6 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
-try:
-    from opencage.geocoder import OpenCageGeocode
-    OPENCAGE_AVAILABLE = True
-except ImportError:
-    OPENCAGE_AVAILABLE = False
-
 CONFIG_PATH = Path.home() / ".mx_osint_config.json"
 OUTPUT_DIR = Path("output")
 REPORT_DIR = OUTPUT_DIR / "reports"
@@ -79,10 +74,9 @@ for d in (REPORT_DIR, MAP_DIR):
 SAMPLE_CONFIG = {
     "abstract_phone_intelligence": "",
     "numverify": "",
-    "shodan": "",
-    "ip2location": "",
-    "ipinfo": "",
-    "opencage": ""
+    "geoapify": "",
+    "google_places": "",
+    "ipqualityscore": ""
 }
 
 DUMMY_MODE = False
@@ -109,6 +103,10 @@ class SourceVote:
 class ScanResult:
     scan_id: str = ""
     raw_input: str = ""
+    detected_format: str = ""
+    international_digits: str = ""
+    is_possible: bool = False
+    is_mexican: bool = False
     e164: str = ""
     valid: bool = False
     country_code: str = ""
@@ -135,10 +133,12 @@ class ScanResult:
     latitude: float = None
     longitude: float = None
     nominatim_address: str = ""
-    opencage_latitude: float = None
-    opencage_longitude: float = None
-    opencage_address: str = ""
-    shodan_ips: list = field(default_factory=list)
+    geoapify_data: dict = field(default_factory=dict)
+    geoapify_latitude: float = None
+    geoapify_longitude: float = None
+    geoapify_address: str = ""
+    google_places_data: dict = field(default_factory=dict)
+    ipqualityscore_data: dict = field(default_factory=dict)
     osint_links: dict = field(default_factory=dict)
     map_path: str = ""
     report_path: str = ""
@@ -187,7 +187,38 @@ SAMPLE_NUMVERIFY = {
     "line_type": "mobile"
 }
 
-SAMPLE_SHODAN = {"total": 0, "matches": []}
+SAMPLE_GEOAPIFY = {
+    "source": "Geoapify",
+    "kind": "numbering_locality",
+    "city": "Ciudad de Mexico",
+    "state": "Ciudad de Mexico",
+    "country": "Mexico",
+    "country_code": "MX",
+    "formatted_address": "Ciudad de Mexico, Mexico",
+    "latitude": None,
+    "longitude": None,
+    "note": "Numbering locality only; not live phone or subscriber location.",
+}
+
+SAMPLE_GOOGLE_PLACES = {
+    "source": "Google Places",
+    "match_status": "no_public_listing",
+    "note": "No public business listing found; not subscriber identification.",
+}
+
+SAMPLE_IPQUALITYSCORE = {
+    "source": "IPQualityScore",
+    "valid": True,
+    "active": True,
+    "risk_score": 10,
+    "abuse_recent": False,
+    "voip": False,
+    "carrier": "Telcel",
+    "line_type": "Wireless",
+    "country_code": "MX",
+    "city": "Ciudad de Mexico",
+    "region": "Ciudad de Mexico",
+}
 
 # --- BANNER ---
 GREEN = '\033[1;32m'
@@ -263,7 +294,7 @@ def print_banner():
     print()
     print(GREEN + "╔══════════════════════════════════════════════════════════════════╗" + RESET)
     print(GREEN + "║                                                                  ║" + RESET)
-    print(WHITE + "║                    MeXicOSINT v2.4.0                             ║" + RESET)
+    print(WHITE + "║                    MeXicOSINT v2.5.0                             ║" + RESET)
     print(RED + "║              OSINT para numeros Mexicanos                        ║" + RESET)
     print(RED + "║                    Autor: KiMiGuEL                               ║" + RESET)
     print(RED + "╚══════════════════════════════════════════════════════════════════╝" + RESET)
@@ -273,7 +304,7 @@ def print_banner():
 # --- CONFIG ---
 # FIX #10: Config keys stored with restrictive file permissions (0o600)
 def init_config():
-    if DUMMY_MODE and not CONFIG_PATH.exists():
+    if DUMMY_MODE:
         print("[*] Modo dummy: usando configuracion de prueba en memoria.")
         return {k: f"dummy_key_{k}" for k in SAMPLE_CONFIG}
 
@@ -526,45 +557,19 @@ def detect_lada_region(national_number: str) -> str:
 # --- VALIDATION ---
 # FIX #1: Add is_valid_number() in addition to is_possible_number()
 def validate_mx_number(raw):
-    try:
-        import phonenumbers
-        cleaned = re.sub(r'[\s\-\(\)\.]', '', raw.strip())
-
-        if not cleaned.startswith('+'):
-            if cleaned.startswith('00'):
-                cleaned = '+' + cleaned[2:]
-            elif cleaned.startswith('01'):
-                cleaned = '+52' + cleaned[2:]
-            elif cleaned.startswith('044') or cleaned.startswith('045'):
-                cleaned = '+52' + cleaned[3:]
-            elif cleaned.startswith('52'):
-                cleaned = '+' + cleaned
-            else:
-                cleaned = '+52' + cleaned
-
-        parsed = phonenumbers.parse(cleaned, None)
-
-        if not phonenumbers.is_possible_number(parsed):
-            print(f"[!] ERROR: '{raw}' no es un numero posible.")
-            return None
-
-        # FIX #1: Also check is_valid_number for stricter validation
-        if not phonenumbers.is_valid_number(parsed):
-            print(f"[!] ERROR: '{raw}' no es un numero valido (posible pero no valido).")
-            return None
-
-        if parsed.country_code != 52:
-            print(f"[!] ERROR: Codigo de pais {parsed.country_code}, se esperaba 52 (Mexico).")
-            return None
-
-        e164 = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
-        return e164, parsed
-    except ImportError:
-        print("[!] phonenumbers no instalado. Ejecuta: pip3 install phonenumbers")
-        sys.exit(1)
-    except Exception as e:
-        print(f"[!] ERROR validando numero: {e}")
+    normalized = normalize_mx_number(raw)
+    if not normalized.is_possible:
+        print(f"[!] ERROR: '{raw}' no es un numero posible.")
         return None
+    if not normalized.is_valid:
+        print(f"[!] ERROR: '{raw}' no es un numero valido (posible pero no valido).")
+        return None
+    if not normalized.is_mexican:
+        parsed = normalized.parsed
+        code = parsed.country_code if parsed else "desconocido"
+        print(f"[!] ERROR: Codigo de pais {code}, se esperaba 52 (Mexico).")
+        return None
+    return normalized.e164, normalized.parsed
 
 
 # --- GEOCODER PHONENUMBERS ---
@@ -606,35 +611,11 @@ def geocode_nominatim(city_region):
             "limit": 1,
             "countrycodes": "mx"
         }
-        headers = {"User-Agent": "MeXicOSINT/2.4.0 (OSINT research)"}
+        headers = {"User-Agent": "MeXicOSINT/2.5.0 (OSINT research)"}
         r = requests.get(url, params=params, headers=headers, timeout=10)
         data = r.json()
         if data:
             return float(data[0]["lat"]), float(data[0]["lon"]), data[0].get("display_name", "")
-    except Exception:
-        pass
-    return None, None, ""
-
-
-# --- OPENCAGE GEOCODING (PRIMARY) ---
-def opencage_geocode(city_region, config):
-    if not city_region or _normalize_for_vague(city_region) in VAGUE_LOCATIONS:
-        return None, None, ""
-    if DUMMY_MODE:
-        return None, None, ""
-    if not OPENCAGE_AVAILABLE:
-        return None, None, ""
-    try:
-        key = _get_api_key(config, "opencage")
-        if not key or key == "YOUR_KEY":
-            return None, None, ""
-        geocoder = OpenCageGeocode(key)
-        results = geocoder.geocode(f"{city_region}, Mexico", countrycode="mx", limit=1)
-        if results and len(results) > 0:
-            lat = float(results[0]['geometry']['lat'])
-            lng = float(results[0]['geometry']['lng'])
-            address = results[0].get('formatted', '')
-            return lat, lng, address
     except Exception:
         pass
     return None, None, ""
@@ -680,77 +661,6 @@ def numverify_lookup(e164, api_key):
     if data.get("error"):
         err_info = data.get("error", {})
         raise Exception(f"Numverify API Error: {err_info.get('info', 'Unknown')}")
-    return data
-
-
-# FIX #8: Shodan search with clear disclaimer
-def shodan_search(query, api_key):
-    if DUMMY_MODE:
-        return SAMPLE_SHODAN
-
-    url = "https://api.shodan.io/shodan/host/search"
-    params = {"key": api_key, "query": query}
-    r = requests.get(url, params=params, timeout=20)
-    if r.status_code != 200:
-        raise Exception(f"Shodan HTTP {r.status_code}: {r.text[:200]}")
-    return r.json()
-
-
-def ip2location_lookup(ip, api_key):
-    if DUMMY_MODE:
-        sample = {
-            "ip": ip,
-            "country_code": "US",
-            "country_name": "United States",
-            "region_name": "California",
-            "city_name": "Mountain View",
-            "latitude": 37.40599,
-            "longitude": -122.07851,
-            "zip_code": "94043",
-            "time_zone": "America/Los_Angeles",
-            "asn": "15169"
-        }
-        return sample
-
-    url = "https://api.ip2location.io/"
-    params = {"key": api_key, "ip": ip, "format": "json"}
-    r = requests.get(url, params=params, timeout=15)
-    r.raise_for_status()
-    return r.json()
-
-
-def ipinfo_lookup(ip, api_key):
-    if DUMMY_MODE:
-        return {
-            "ip": ip,
-            "city": "Mountain View",
-            "region": "California",
-            "country": "United States",
-            "country_name": "United States",
-            "country_code": "US",
-            "loc": "37.40599,-122.07851",
-            "org": "AS15169 Google LLC",
-            "_ipinfo_endpoint": "lookup"
-        }
-
-    if not api_key or len(api_key) <= 5:
-        raise Exception("ipinfo token no configurado")
-
-    url_lookup = f"https://api.ipinfo.io/lookup/{ip}?token={api_key}"
-    try:
-        r = requests.get(url_lookup, timeout=15)
-        if r.status_code == 200:
-            data = r.json()
-            data["_ipinfo_endpoint"] = "lookup"
-            return data
-    except Exception:
-        pass
-
-    url_lite = f"https://api.ipinfo.io/lite/{ip}?token={api_key}"
-    r = requests.get(url_lite, timeout=15)
-    r.raise_for_status()
-    data = r.json()
-    data["_ipinfo_endpoint"] = "lite"
     return data
 
 
@@ -1077,6 +987,22 @@ def rich_print_api_results(result: ScanResult):
             result.numverify_carrier or "—",
             result.numverify_line_type or "—"
         )
+    if result.ipqualityscore_data:
+        table.add_row(
+            "IPQualityScore",
+            str(result.ipqualityscore_data.get("valid", "N/A")),
+            result.ipqualityscore_data.get("city") or "—",
+            result.ipqualityscore_data.get("carrier") or "—",
+            result.ipqualityscore_data.get("line_type") or "—",
+        )
+    if result.google_places_data:
+        table.add_row(
+            "Google Places",
+            result.google_places_data.get("match_status", "N/A"),
+            result.google_places_data.get("public_address") or "—",
+            result.google_places_data.get("name") or "—",
+            "public listing",
+        )
     console.print()
     console.print(table)
 
@@ -1094,6 +1020,15 @@ def plain_print_api_results(result: ScanResult):
               f"Ubicacion: {result.numverify_location or '—'}, "
               f"Operadora: {result.numverify_carrier or '—'}, "
               f"Tipo: {result.numverify_line_type or '—'}")
+    if result.ipqualityscore_data:
+        print(f"    [IPQualityScore] Valido: {result.ipqualityscore_data.get('valid', 'N/A')}, "
+              f"Activo: {result.ipqualityscore_data.get('active', 'N/A')}, "
+              f"Riesgo: {result.ipqualityscore_data.get('risk_score', 'N/A')}, "
+              f"Abuso reciente: {result.ipqualityscore_data.get('abuse_recent', 'N/A')}")
+    if result.google_places_data:
+        print(f"    [Google Places] {result.google_places_data.get('match_status', 'N/A')}: "
+              f"{result.google_places_data.get('name', '—') or '—'}")
+        print("      Nota: posible ficha publica de negocio, no identificacion del suscriptor.")
 
 
 def rich_print_consensus(result: ScanResult):
@@ -1135,15 +1070,15 @@ def rich_print_geo(result: ScanResult):
     table.add_row("Confianza", f"{int(result.consensus_confidence*100)}%")
     table.add_row("Latitud", f"{result.latitude:.5f}" if result.latitude else "—")
     table.add_row("Longitud", f"{result.longitude:.5f}" if result.longitude else "—")
-    table.add_row("OpenCage lat/lon",
-                  f"{result.opencage_latitude:.5f}, {result.opencage_longitude:.5f}"
-                  if result.opencage_latitude and result.opencage_longitude else "—")
-    table.add_row("OpenCage address",
-                  (result.opencage_address[:70] + "...") if result.opencage_address else "—")
+    table.add_row("Geoapify lat/lon",
+                  f"{result.geoapify_latitude:.5f}, {result.geoapify_longitude:.5f}"
+                  if result.geoapify_latitude and result.geoapify_longitude else "—")
+    table.add_row("Geoapify address",
+                  (result.geoapify_address[:70] + "...") if result.geoapify_address else "—")
     table.add_row("Direccion (Nominatim)", (result.nominatim_address[:70] + "...") if result.nominatim_address else "—")
     console.print()
     console.print(table)
-    console.print("[dim]Nota: coordenadas del centro de la localidad, NO GPS en tiempo real.[/dim]")
+    console.print("[dim]Nota: localidad de numeracion; NO GPS en tiempo real ni ubicacion del suscriptor.[/dim]")
 
 
 def plain_print_geo(result: ScanResult):
@@ -1153,13 +1088,13 @@ def plain_print_geo(result: ScanResult):
     print(f"    Confianza:       {int(result.consensus_confidence*100)}%")
     print(f"    Latitud:         {result.latitude:.5f}" if result.latitude else "    Latitud:         —")
     print(f"    Longitud:        {result.longitude:.5f}" if result.longitude else "    Longitud:        —")
-    if result.opencage_latitude and result.opencage_longitude:
-        print(f"    OpenCage lat/lon: {result.opencage_latitude:.5f}, {result.opencage_longitude:.5f}")
-    if result.opencage_address:
-        print(f"    OpenCage address: {result.opencage_address[:70]}")
+    if result.geoapify_latitude and result.geoapify_longitude:
+        print(f"    Geoapify lat/lon: {result.geoapify_latitude:.5f}, {result.geoapify_longitude:.5f}")
+    if result.geoapify_address:
+        print(f"    Geoapify address: {result.geoapify_address[:70]}")
     if result.nominatim_address:
         print(f"    Direccion (Nominatim): {result.nominatim_address[:70]}")
-    print("    Nota: coordenadas del centro de la localidad, NO GPS en tiempo real.")
+    print("    Nota: localidad de numeracion; NO GPS en tiempo real ni ubicacion del suscriptor.")
 
 
 def rich_print_osint_links(links: dict):
@@ -1179,44 +1114,6 @@ def plain_print_osint_links(links: dict):
     print("-" * 60)
     for name, url in links.items():
         print(f"    {name:22} {url}")
-
-
-def rich_print_shodan(result: ScanResult):
-    console = Console()
-    table = Table(title="🔍 SHODAN RESULTS", box=box.ROUNDED,
-                  border_style="red", show_lines=True)
-    table.add_column("#", width=4)
-    table.add_column("IP:Puerto", style="bold white", width=22)
-    table.add_column("Organizacion", width=25)
-    table.add_column("Hostnames")
-    for i, match in enumerate(result.shodan_ips, 1):
-        ip = match.get("ip_str", "N/A")
-        port = match.get("port", "N/A")
-        org = match.get("org", "N/A")
-        hosts = ", ".join(match.get("hostnames", [])) or "N/A"
-        table.add_row(str(i), f"{ip}:{port}", org, hosts)
-    if not result.shodan_ips:
-        table.add_row("", "No se encontraron resultados expuestos.", "", "")
-    console.print()
-    console.print(table)
-    # FIX #8: Add disclaimer about Shodan results
-    console.print("[dim yellow]⚠️  Nota: Resultados de Shodan son banners de servicios, no prueban que las IPs pertenezcan al telefono.[/dim yellow]")
-
-
-def plain_print_shodan(result: ScanResult):
-    print("\n[+] SHODAN RESULTS:")
-    print("-" * 60)
-    if not result.shodan_ips:
-        print("    No se encontraron resultados expuestos.")
-        return
-    for i, match in enumerate(result.shodan_ips, 1):
-        ip = match.get("ip_str", "N/A")
-        port = match.get("port", "N/A")
-        org = match.get("org", "N/A")
-        hosts = ", ".join(match.get("hostnames", [])) or "N/A"
-        print(f"    [{i}] {ip}:{port} | Org: {org} | Hosts: {hosts}")
-    # FIX #8: Add disclaimer about Shodan results
-    print("    ⚠️  Nota: Resultados de Shodan son banners de servicios, no prueban que las IPs pertenezcan al telefono.")
 
 
 def rich_print_report(result: ScanResult):
@@ -1245,77 +1142,24 @@ def plain_print_report(result: ScanResult):
 def generate_osint_links(e164):
     num_no_plus = e164.replace("+", "")
     num10 = num_no_plus[2:]
-    quoted = urllib.parse.quote(num_no_plus)
-    quoted_exact = urllib.parse.quote('"' + num_no_plus + '"')
+    spaced = f"+52 {num10[:3]} {num10[3:6]} {num10[6:]}" if len(num10) == 10 else e164
+
+    def google(query: str) -> str:
+        return f"https://www.google.com/search?q={urllib.parse.quote(query)}"
 
     links = {
-        "WhatsApp Web": f"https://web.whatsapp.com/send?phone={num_no_plus}",
         "WhatsApp (wa.me)": f"https://wa.me/{num_no_plus}",
-        "Facebook": f"https://www.facebook.com/search/top/?q={quoted}",
-        "Twitter/X": f"https://twitter.com/search?q={quoted}",
-        # FIX #9: Instagram tag search removed - not a genuine phone lookup
-        # "Instagram": f"https://www.instagram.com/explore/tags/{num_no_plus}/",  # REMOVED
-        "TikTok": f"https://www.tiktok.com/search?q={quoted}",
-        # FIX #9: Telegram t.me link removed - only works for usernames, not phone numbers
-        # "Telegram": f"https://t.me/{e164}",  # REMOVED - invalid for phone numbers
-        # FIX #9: Snapchat add link removed - not a lookup mechanism
-        # "Snapchat": f"https://www.snapchat.com/add/{num_no_plus}",  # REMOVED
-        "Truecaller": f"https://www.truecaller.com/search/mx/{num_no_plus}",
-        "Google (exacto)": f"https://www.google.com/search?q={quoted_exact}",
-        "Google dork FB": f"https://www.google.com/search?q={urllib.parse.quote('site:facebook.com ' + num_no_plus)}",
-        "Google dork ML": f"https://www.google.com/search?q={urllib.parse.quote('site:mercadolibre.com.mx ' + num_no_plus)}",
-        # FIX #11: Paginas Blancas link removed - domain dead/repurposed (v2.3.0)
-        # "Paginas Blancas": f"https://www.paginasblancas.com.mx/buscar/personas/{num10}",  # REMOVED
+        "Google exact E.164": google(f'"{e164}"'),
+        "Google exact international": google(f'"{num_no_plus}"'),
+        "Google exact national": google(f'"{num10}"'),
+        "Google exact spaced": google(f'"{spaced}"'),
+        "Google site:facebook.com": google(f'site:facebook.com "{num_no_plus}" OR "{num10}"'),
+        "Google site:tiktok.com": google(f'site:tiktok.com "{num_no_plus}" OR "{num10}"'),
+        "Google site:x.com": google(f'site:x.com "{num_no_plus}" OR "{num10}"'),
+        "Google site:twitter.com": google(f'site:twitter.com "{num_no_plus}" OR "{num10}"'),
         "Formato E.164": e164,
     }
     return links
-
-
-# --- IP GEO ---
-def print_ip_geo(ip, ip2_key, ipinfo_key):
-    print(f"\n[+] GEOLOCALIZACION IP {ip}:")
-    print("-" * 60)
-
-    if ip2_key and len(ip2_key) > 5:
-        try:
-            data = ip2location_lookup(ip, ip2_key)
-            print(f"    [ip2location.io]")
-            print(f"      IP:           {data.get('ip', 'N/A')}")
-            print(f"      Pais:         {data.get('country_name', 'N/A')} ({data.get('country_code', 'N/A')})")
-            print(f"      Region:       {data.get('region_name', 'N/A')}")
-            print(f"      Ciudad:       {data.get('city_name', 'N/A')}")
-            print(f"      Lat/Lon:      {data.get('latitude', 'N/A')}, {data.get('longitude', 'N/A')}")
-            print(f"      Codigo postal:{data.get('zip_code', 'N/A')}")
-            print(f"      Zona horaria: {data.get('time_zone', 'N/A')}")
-            print(f"      ASN:          {data.get('asn', 'N/A')}")
-        except Exception as e:
-            print(f"    [ip2location.io] Error: {e}")
-    else:
-        print(f"    [ip2location.io] Key no configurada.")
-
-    if ipinfo_key and len(ipinfo_key) > 5:
-        try:
-            data = ipinfo_lookup(ip, ipinfo_key)
-            endpoint = data.pop("_ipinfo_endpoint", "unknown")
-            print(f"    [ipinfo.io] ({endpoint})")
-            print(f"      IP:           {data.get('ip', 'N/A')}")
-            if endpoint == "lookup":
-                print(f"      Ciudad:       {data.get('city', 'N/A')}")
-                print(f"      Region:       {data.get('region', 'N/A')}")
-            print(f"      Pais:         {data.get('country_name', data.get('country', 'N/A'))}")
-            print(f"      Codigo:       {data.get('country_code', 'N/A')}")
-            if endpoint == "lookup":
-                print(f"      Ubicacion:    {data.get('loc', 'N/A')}")
-                print(f"      Org/ASN:      {data.get('org', 'N/A')}")
-            else:
-                print(f"      ASN:          {data.get('asn', 'N/A')}")
-                print(f"      AS Name:      {data.get('as_name', 'N/A')}")
-                print(f"      AS Domain:    {data.get('as_domain', 'N/A')}")
-                print(f"      Continente:   {data.get('continent', 'N/A')}")
-        except Exception as e:
-            print(f"    [ipinfo.io] Error: {e}")
-    else:
-        print(f"    [ipinfo.io] Key no configurada.")
 
 
 # --- MAIN ---
@@ -1323,6 +1167,12 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
     result = ScanResult()
     result.scan_id = f"MX-{uuid.uuid4().hex[:10].upper()}"
     result.raw_input = raw
+
+    normalized = normalize_mx_number(raw)
+    result.detected_format = normalized.detected_format
+    result.international_digits = normalized.international_digits
+    result.is_possible = normalized.is_possible
+    result.is_mexican = normalized.is_mexican
 
     validated = validate_mx_number(raw)
     if not validated:
@@ -1376,6 +1226,28 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
             api_results["numverify"] = None
             result.errors.append(f"numverify: {e}")
 
+    if "google_places" in active:
+        try:
+            if DUMMY_MODE:
+                result.google_places_data = SAMPLE_GOOGLE_PLACES
+            else:
+                places = GooglePlacesProvider(_get_api_key(config, "google_places")).lookup(normalized)
+                if places:
+                    result.google_places_data = asdict(places)
+        except Exception as e:
+            result.errors.append(f"google_places: {e}")
+
+    if "ipqualityscore" in active:
+        try:
+            if DUMMY_MODE:
+                result.ipqualityscore_data = SAMPLE_IPQUALITYSCORE
+            else:
+                reputation = IPQualityScoreProvider(_get_api_key(config, "ipqualityscore")).lookup(normalized)
+                if reputation:
+                    result.ipqualityscore_data = asdict(reputation)
+        except Exception as e:
+            result.errors.append(f"ipqualityscore: {e}")
+
     # Process Abstract Phone Intelligence results
     if "abstract_intel" in api_results and api_results["abstract_intel"]:
         parsed_abs = parse_abstract(api_results["abstract_intel"])
@@ -1403,39 +1275,29 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
         if DUMMY_MODE:
             print("\n[*] Geocodificando localidad...")
             print("    [!] Omitido en modo dummy para evitar llamadas de red.")
+            result.geoapify_data = SAMPLE_GEOAPIFY
         else:
-            print("\n[*] Geocodificando localidad (OpenCage primario, Nominatim respaldo)...")
-            print("[!] OpenCage free tier: 2,500/day. ~1-2 req per scan.")
-            print("[!] Límite gratuito: 2,500 búsquedas/día. ~1-2 solicitudes por escaneo.")
-            result.opencage_latitude, result.opencage_longitude, result.opencage_address = opencage_geocode(
-                geo_target, config
-            )
-            if result.opencage_latitude and result.opencage_longitude:
-                result.latitude, result.longitude = result.opencage_latitude, result.opencage_longitude
-                print("    [OpenCage] OK")
+            print("\n[*] Geocodificando localidad de numeracion (Geoapify primario, Nominatim respaldo)...")
+            if "geoapify" in active:
+                try:
+                    locality = GeoapifyProvider(_get_api_key(config, "geoapify")).lookup(geo_target)
+                    if locality:
+                        result.geoapify_data = asdict(locality)
+                        result.geoapify_latitude = locality.latitude
+                        result.geoapify_longitude = locality.longitude
+                        result.geoapify_address = locality.formatted_address
+                except Exception as e:
+                    result.errors.append(f"geoapify: {e}")
+            if result.geoapify_latitude and result.geoapify_longitude:
+                result.latitude, result.longitude = result.geoapify_latitude, result.geoapify_longitude
+                print("    [Geoapify] OK")
             else:
-                print("    [OpenCage] Fallo o sin resultados, usando Nominatim...")
+                print("    [Geoapify] Sin key/resultado, usando Nominatim...")
                 result.latitude, result.longitude, result.nominatim_address = geocode_nominatim(geo_target)
 
     # Map
     if result.latitude and result.longitude:
         result.map_path = generate_map(result)
-
-    # Shodan
-    if "shodan" in active:
-        try:
-            data = shodan_search(e164, _get_api_key(config, "shodan"))
-            result.shodan_ips = data.get("matches", [])[:5]
-        except Exception as e:
-            result.errors.append(f"shodan: {e}")
-
-    # Geolocalizar IPs encontradas con ip2location/ipinfo
-    if result.shodan_ips and ("ip2location" in active or "ipinfo" in active):
-        print("\n[*] Geolocalizando IPs encontradas...")
-        for match in result.shodan_ips:
-            ip = match.get("ip_str")
-            if ip:
-                print_ip_geo(ip, _get_api_key(config, "ip2location"), _get_api_key(config, "ipinfo"))
 
     # Report
     result.report_path = save_report(result)
@@ -1466,10 +1328,6 @@ def print_results(result: ScanResult):
             lambda: plain_print_geo(result)
         )
     _rich_or_plain(
-        lambda: rich_print_shodan(result),
-        lambda: plain_print_shodan(result)
-    )
-    _rich_or_plain(
         lambda: rich_print_report(result),
         lambda: plain_print_report(result)
     )
@@ -1480,16 +1338,6 @@ def print_results(result: ScanResult):
     print("    El numero pudo haber sido portado a otra operadora o region.")
     print("    La ubicacion mostrada es la del prefijo original/consenso de APIs,")
     print("    NO garantiza la posicion exacta/GPS del telefono.")
-
-
-def _is_private_ip(ip: str) -> bool:
-    """True if the address is private/reserved and not geolocatable via public APIs."""
-    try:
-        import ipaddress
-        addr = ipaddress.ip_address(ip)
-        return addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast
-    except ValueError:
-        return False
 
 
 def main(argv=None):
@@ -1510,28 +1358,15 @@ def main(argv=None):
 
     print_banner()
 
-    # Extract --ip pair regardless of position; the rest is the phone number.
-    ip_value = None
-    if "--ip" in args:
-        i = args.index("--ip")
-        if i + 1 >= len(args):
-            print("[!] Uso: mexicosint [numero] --ip <direccion_ip>")
-            sys.exit(1)
-        ip_value = args[i + 1]
-        del args[i:i + 2]
-
     number = args[0] if args else None
 
-    if not number and not ip_value:
-        print("Uso: mexicosint <numero_mexicano> [--ip <direccion_ip_publica>]")
-        print("     mexicosint --ip <direccion_ip>")
+    if not number:
+        print("Uso: mexicosint <numero_mexicano>")
         print("     mexicosint --dummy-test <numero_mexicano>")
         print("Ejemplos:")
         print("    mexicosint 5512345678")
         print("    mexicosint +525512345678")
-        print("    mexicosint --ip 8.8.8.8")
-        print("    mexicosint 5512345678 --ip 8.8.8.8")
-        print("    mexicosint --set-key opencage TU_KEY")
+        print("    mexicosint --set-key geoapify TU_KEY")
         print("    mexicosint --list-keys")
         sys.exit(1)
 
@@ -1546,19 +1381,6 @@ def main(argv=None):
         print("=" * 60)
         result = run_phone_scan(number, config, active)
         print_results(result)
-
-    if ip_value:
-        if not is_valid_ip(ip_value):
-            print(f"[!] ERROR: '{ip_value}' no es una direccion IP valida.")
-            sys.exit(1)
-        print(f"\n[+] Modo IP: {ip_value}")
-        print("=" * 60)
-        if _is_private_ip(ip_value):
-            print(f"[!] '{ip_value}' es una IP privada/reservada.")
-            print("    Las APIs publicas no geolocalizan IPs privadas (RFC 1918).")
-            print("    Usa una IP publica para este modo.")
-        else:
-            print_ip_geo(ip_value, _get_api_key(config, "ip2location"), _get_api_key(config, "ipinfo"))
 
     print("\n[*] Escaneo completado.")
     print("=" * 60)

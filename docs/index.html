@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeXiCOSINT — La herramienta OSINT para números telefónicos mexicanos</title>
+<meta name="description" content="MeXiCOSINT: OSINT para números telefónicos mexicanos con la base oficial IFT/PNN integrada. Operadora, modalidad y fecha de asignación, offline.">
+<style>
+  :root{
+    --bg:#0b0f0c;
+    --bg2:#10160f;
+    --panel:#141b16;
+    --line:#223026;
+    --txt:#e8f0e9;
+    --muted:#9db3a3;
+    --green:#1db954;
+    --green2:#0f7a38;
+    --red:#e5484d;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6}
+  a{color:var(--green);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* NAV */
+  nav{position:sticky;top:0;background:rgba(11,15,12,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);z-index:10}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .logo{font-weight:800;font-size:1.15rem;letter-spacing:.5px}
+  .logo span{color:var(--green)}
+  nav .links a{color:var(--muted);margin-left:22px;font-size:.95rem}
+  nav .links a:hover{color:var(--txt);text-decoration:none}
+  .badge-ver{font-family:var(--mono);font-size:.75rem;color:var(--green);border:1px solid var(--green2);border-radius:999px;padding:2px 10px;margin-left:10px}
+
+  /* HERO */
+  header{padding:80px 0 60px;text-align:center;background:radial-gradient(ellipse at 50% -10%,#14251a 0%,var(--bg) 60%)}
+  header img.banner{max-width:min(680px,90%);height:auto;border-radius:12px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  h1{font-size:clamp(1.9rem,4.5vw,3rem);margin:36px 0 14px;font-weight:800;letter-spacing:-.5px}
+  .tagline{font-size:clamp(1rem,2vw,1.25rem);color:var(--muted);max-width:680px;margin:0 auto 32px}
+  .tagline b{color:var(--txt)}
+  .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-block;padding:13px 26px;border-radius:10px;font-weight:700;font-size:.98rem;transition:.15s}
+  .btn-p{background:var(--green);color:#04120a}
+  .btn-p:hover{background:#23c762;text-decoration:none}
+  .btn-s{border:1px solid var(--line);color:var(--txt);background:var(--panel)}
+  .btn-s:hover{border-color:var(--green2);text-decoration:none}
+
+  .install{margin:44px auto 0;max-width:640px;background:#070a08;border:1px solid var(--line);border-radius:12px;text-align:left;overflow:hidden}
+  .install .bar{display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .install .bar i{width:11px;height:11px;border-radius:50%;display:block}
+  .install .bar i:nth-child(1){background:#ff5f57}.install .bar i:nth-child(2){background:#febc2e}.install .bar i:nth-child(3){background:#28c840}
+  .install pre{padding:16px 18px;font-family:var(--mono);font-size:.9rem;color:#b6f2c9;overflow-x:auto}
+  .install .c{color:#5f7a67}
+
+  /* SECTIONS */
+  section{padding:72px 0}
+  .kicker{font-family:var(--mono);color:var(--green);font-size:.8rem;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+  h2{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:800;margin-bottom:16px;letter-spacing:-.3px}
+  .lead{color:var(--muted);max-width:720px;font-size:1.05rem}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:36px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+  .card h3{font-size:1.05rem;margin:12px 0 8px}
+  .card p{color:var(--muted);font-size:.93rem}
+  .card .ico{font-size:1.5rem}
+  .card.star{border-color:var(--green2);background:linear-gradient(160deg,#12201580,var(--panel))}
+  .card.star .pill{display:inline-block;font-family:var(--mono);font-size:.68rem;color:#04120a;background:var(--green);border-radius:6px;padding:2px 8px;margin-bottom:6px;font-weight:700}
+
+  /* IFT feature */
+  .ift{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .ift-flex{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center;margin-top:28px}
+  @media(max-width:840px){.ift-flex{grid-template-columns:1fr}}
+  .term{background:#070a08;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-family:var(--mono);font-size:.82rem}
+  .term .bar{display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .term .bar i{width:11px;height:11px;border-radius:50%;display:block}
+  .term .bar i:nth-child(1){background:#ff5f57}.term .bar i:nth-child(2){background:#febc2e}.term .bar i:nth-child(3){background:#28c840}
+  .term pre{padding:18px;overflow-x:auto;color:#cfe9d6;line-height:1.7}
+  .hl{color:var(--green);font-weight:700}
+  .hlr{color:var(--red);font-weight:700}
+  .dim{color:#5f7a67}
+  .ift ul{list-style:none;margin-top:18px}
+  .ift li{padding:8px 0 8px 28px;position:relative;color:var(--muted)}
+  .ift li::before{content:"▸";color:var(--green);position:absolute;left:0}
+  .ift li b{color:var(--txt)}
+
+  /* Comparison */
+  table{width:100%;border-collapse:collapse;margin-top:32px;font-size:.95rem}
+  th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:.85rem;text-transform:uppercase;letter-spacing:1px}
+  td:first-child{color:var(--muted)}
+  .yes{color:var(--green);font-weight:700}
+  .no{color:var(--red)}
+  .mx td{background:rgba(29,185,84,.05)}
+  .mx td:first-child{color:var(--txt);font-weight:700}
+
+  /* quickstart */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:36px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+  .step .n{font-family:var(--mono);color:var(--green);font-size:1.6rem;font-weight:800}
+  .step h3{margin:10px 0 6px;font-size:1rem}
+  .step p{color:var(--muted);font-size:.9rem}
+  .step code{font-family:var(--mono);background:#070a08;border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:.8rem;color:#b6f2c9}
+
+  /* API keys */
+  .apis{background:var(--bg2);border-top:1px solid var(--line)}
+  .api{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;margin-top:26px}
+  .api-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .api-head h3{font-size:1.15rem;font-weight:800}
+  .api-head .pill{font-family:var(--mono);font-size:.68rem;color:var(--green);border:1px solid var(--green2);border-radius:6px;padding:2px 8px;font-weight:700}
+  .api-head .api-logo{margin-left:auto;height:34px;border-radius:7px;display:block}
+  .api p{color:var(--muted);font-size:.93rem;margin-bottom:10px}
+  .api p b, .api li b{color:var(--txt)}
+  .api .free{display:inline-block;font-family:var(--mono);font-size:.75rem;color:#b6f2c9;background:#070a08;border:1px solid var(--line);border-radius:6px;padding:3px 10px;margin:2px 0 12px}
+  .api ol{margin:10px 0 14px 22px;color:var(--muted);font-size:.92rem}
+  .api ol li{padding:4px 0}
+  .api ol code, .api p code{font-family:var(--mono);background:#070a08;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.8rem;color:#b6f2c9}
+  .api .cmd{font-family:var(--mono);background:#070a08;border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:.85rem;color:#b6f2c9;margin:10px 0;overflow-x:auto}
+  .api .cmd .c{color:#5f7a67}
+  .api .signup{display:inline-block;margin-top:6px;padding:9px 20px;border-radius:8px;font-weight:700;font-size:.88rem;background:var(--green);color:#04120a}
+  .api .signup:hover{background:#23c762;text-decoration:none}
+
+  footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--muted);font-size:.9rem}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px}
+  footer a{margin-right:18px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo">MeXi<span>COSINT</span><span class="badge-ver">v2.5.0</span></div>
+    <div class="links">
+      <a href="#que-hace">Qué hace</a>
+      <a href="#ift">Base IFT</a>
+      <a href="#porque">Por qué</a>
+      <a href="#instalar">Instalar</a>
+      <a href="#llaves">Llaves API</a>
+      <a href="https://github.com/KiMiGuel/MeXiCOSINT">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <img class="banner" src="https://raw.githubusercontent.com/KiMiGuel/MeXiCOSINT/main/mexsint.png" alt="MeXiCOSINT">
+    <h1>OSINT para números telefónicos mexicanos</h1>
+    <p class="tagline">Valida, analiza y enriquece cualquier número de México — con la <b>base oficial del IFT integrada</b>. Sin internet. Sin API keys. Directo del regulador.</p>
+    <div class="cta">
+      <a class="btn btn-p" href="#instalar">Instalar ahora</a>
+      <a class="btn btn-s" href="https://github.com/KiMiGuel/MeXiCOSINT">Ver en GitHub</a>
+    </div>
+    <div class="install">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <pre><span class="c"># un comando y listo</span>
+pipx install mexicosint
+mexicosint 5512345678</pre>
+    </div>
+  </div>
+</header>
+
+<section id="que-hace">
+  <div class="wrap">
+    <p class="kicker">Qué hace</p>
+    <h2>Un número entra. Un expediente sale.</h2>
+    <p class="lead">MeXiCOSINT toma cualquier número telefónico mexicano y genera un análisis completo: validación, operadora, tipo de línea, región, consenso entre fuentes, enlaces de investigación y reporte exportable.</p>
+    <div class="grid">
+      <div class="card star">
+        <span class="pill">EXCLUSIVO</span>
+        <div class="ico">🏛️</div>
+        <h3>Base oficial IFT/PNN offline</h3>
+        <p>177,996 bloques de numeración asignada del Plan Nacional de Numeración, dentro del paquete. Operadora, modalidad y fecha de asignación — directo del regulador, sin conexión.</p>
+      </div>
+      <div class="card">
+        <div class="ico">✅</div>
+        <h3>Validación completa</h3>
+        <p>Formato nacional e internacional (E.164), región por phonenumbers, referencia LADA y parsing local de números mexicanos.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🗳️</div>
+        <h3>Consenso entre fuentes</h3>
+        <p>Estados de evidencia entendibles entre phonenumbers, IFT/PNN, AbstractAPI, NumVerify, Geoapify, Google Places e IPQualityScore — sin falsas certezas.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🚨</div>
+        <h3>Detección de números premium</h3>
+        <p>Series 200/300/500/800/900 identificadas automáticamente. Los números 900 (sobre cuota) disparan alerta roja de posible estafa.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🔗</div>
+        <h3>Enlaces de investigación</h3>
+        <p>Links OSINT verificados: WhatsApp por <code>wa.me</code> y búsquedas Google con variantes exactas del número, incluyendo Facebook, TikTok, X y Twitter.</p>
+      </div>
+      <div class="card">
+        <div class="ico">📁</div>
+        <h3>Reportes exportables</h3>
+        <p>Reporte JSON con hash SHA-256 y mapa HTML de la localidad consensuada. Listo para documentar investigaciones.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ift" id="ift">
+  <div class="wrap">
+    <p class="kicker">Lo que la hace única</p>
+    <h2>La única herramienta con la base oficial del IFT</h2>
+    <div class="ift-flex">
+      <div>
+        <p class="lead">Ninguna otra herramienta OSINT consulta el registro del regulador mexicano. MeXiCOSINT lo lleva integrado: <b>sin internet, sin APIs, sin costo por consulta.</b></p>
+        <ul>
+          <li><b>Operadora oficial</b> — el concesionario dueño del bloque (Telcel, Telmex, AT&T, Movistar y 20+ más)</li>
+          <li><b>Modalidad</b> — línea fija, móvil (CPP/MPP) o no geográfico</li>
+          <li><b>Fecha de asignación</b> — cuándo el IFT asignó el bloque</li>
+          <li><b>Actualizable</b> — <code>tools/update_ift_blocks.py</code> descarga el plan vigente</li>
+        </ul>
+      </div>
+      <div class="term">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <pre><span class="dim">$</span> mexicosint 6644837308
+
+[+] INFORMACION DEL SUSCRIPTOR
+    MSISDN (E.164):      +526644837308
+    Valido:              SI
+    <span class="hl">Operadora (IFT oficial): Telcel</span>
+    <span class="hl">Modalidad (IFT):     Movil (CPP)</span>
+    <span class="hl">Asignado (IFT):      16/10/2014</span>
+
+<span class="dim">$</span> mexicosint 9000211234
+    <span class="hlr">Tipo de servicio (IFT): Sobre cuota</span>
+    <span class="hlr">(PREMIUM, posible estafa)</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="porque">
+  <div class="wrap">
+    <p class="kicker">Por qué MeXiCOSINT</p>
+    <h2>La mejor herramienta OSINT mexicana del momento</h2>
+    <p class="lead">Las herramientas genéricas tratan a México como un país más. MeXiCOSINT está construida para México desde cero.</p>
+    <table>
+      <tr><th>Capacidad</th><th>Herramientas genéricas</th><th>MeXiCOSINT</th></tr>
+      <tr><td>Base oficial IFT/PNN offline</td><td class="no">✗</td><td class="yes">✓ 177,996 bloques</td></tr>
+      <tr><td>LADAs y formato mexicano nativo</td><td class="no">Parcial</td><td class="yes">✓ Nativo</td></tr>
+      <tr><td>Series 800/900 (toll-free/premium)</td><td class="no">✗</td><td class="yes">✓ Con alerta de estafa</td></tr>
+      <tr><td>Consenso ponderado multi-fuente</td><td class="no">✗</td><td class="yes">✓</td></tr>
+      <tr><td>Documentación en español</td><td class="no">✗</td><td class="yes">✓ ES + EN</td></tr>
+      <tr><td>Funciona sin API keys</td><td class="no">Limitado</td><td class="yes">✓ Base IFT siempre disponible</td></tr>
+      <tr><td>Gratis y open source</td><td class="no">Parcial</td><td class="yes">✓ MIT</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="instalar">
+  <div class="wrap">
+    <p class="kicker">Empieza en 60 segundos</p>
+    <h2>Instalación</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="n">01</div>
+        <h3>Instala con pipx</h3>
+        <p><code>pipx install mexicosint</code><br>Aislado, sin tocar el Python del sistema. Ideal para Kali.</p>
+      </div>
+      <div class="step">
+        <div class="n">02</div>
+        <h3>Escanea un número</h3>
+        <p><code>mexicosint 5512345678</code><br>La base IFT funciona de inmediato, sin configurar nada.</p>
+      </div>
+      <div class="step">
+        <div class="n">03</div>
+        <h3>Opcional: API keys</h3>
+        <p><code>mexicosint --set-key geoapify TU_KEY</code><br>Enriquecimiento extra cuando lo necesites.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="apis" id="llaves">
+  <div class="wrap">
+    <p class="kicker">Llaves API</p>
+    <h2>Potencia MeXiCOSINT al 100% con llaves API</h2>
+    <p class="lead">La base oficial del IFT y la validación local funcionan <b>sin configurar nada</b>. Con llaves API opcionales, MeXiCOSINT agrega validación, reputación, fichas públicas de negocio y geocodificación de la localidad de numeración. Esa localidad no es GPS ni ubicación del suscriptor.</p>
+
+    <div class="api">
+      <div class="api-head">
+        <h3>AbstractAPI — Validación de teléfonos</h3>
+        <span class="pill">TELÉFONOS</span>
+        <span class="pill">GRATIS</span>
+        <img class="api-logo" style="margin:0 auto" src="data:image/png;base64,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" alt="AbstractAPI">
+      </div>
+      <p><b>Qué hace:</b> valida números telefónicos en tiempo real contra la red telefónica: formato, línea activa, operadora actual y tipo de línea.</p>
+      <p><b>Cómo se integra:</b> AbstractAPI es una de las fuentes del <b>consenso ponderado multi-fuente</b> de MeXiCOSINT. Su veredicto vota junto a phonenumbers y NumVerify para determinar validez y ubicación consensuada con nivel de confianza.</p>
+      <span class="free">Nivel gratuito: 250 validaciones / mes</span>
+      <p><b>Guía de registro</b> (el sitio está en inglés — así lo haces):</p>
+      <ol>
+        <li>Abre el enlace de registro y llena el formulario: correo en <code>"Email"</code> y contraseña en <code>"Password"</code>. También puedes entrar con <code>"Continue with Google"</code>.</li>
+        <li>Pulsa <code>"Sign Up"</code>. AbstractAPI te lleva directo a la selección de plan de <b>Phone Validation API</b>.</li>
+        <li>Elige el plan <code>"Free"</code> (0 USD, sin tarjeta) y confirma con <code>"Subscribe"</code> o <code>"Select"</code>.</li>
+        <li>En tu panel (<code>"Dashboard"</code>) verás tu llave junto a <code>"API Key"</code>. Cópiala con el botón de copiar.</li>
+        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+      </ol>
+      <div class="cmd"><span class="c"># guardar la llave una sola vez</span>
+mexicosint --set-key abstract TU_KEY</div>
+      <p>Listo. A partir de ese momento, cada escaneo incluye el voto de AbstractAPI en el consenso.</p>
+      <a class="signup" href="https://app.abstractapi.com/users/signup?target=/api/phone-validation/pricing/select">Crear cuenta gratis en AbstractAPI</a>
+    </div>
+
+    <div class="api">
+      <div class="api-head">
+        <h3>NumVerify — Validación global de números</h3>
+        <span class="pill">TELÉFONOS</span>
+        <span class="pill">GRATIS</span>
+      </div>
+      <p><b>Qué hace:</b> valida números de 232 países contra los registros de numeración internacionales: validez, formato local e internacional, operadora, tipo de línea y país.</p>
+      <p><b>Cómo se integra:</b> NumVerify es la tercera fuente del <b>consenso ponderado multi-fuente</b> de MeXiCOSINT. Con AbstractAPI + NumVerify activos, el consenso de validez y ubicación alcanza su máximo nivel de confianza.</p>
+      <span class="free">Nivel gratuito: 100 validaciones / mes</span>
+      <p><b>Guía de registro</b> (el sitio está en inglés — así lo haces):</p>
+      <ol>
+        <li>Abre el enlace de registro — cae directo en el plan <code>"Free"</code> (0 USD, sin tarjeta).</li>
+        <li>Llena el formulario: nombre en <code>"Full Name"</code>, correo en <code>"Email"</code> y contraseña en <code>"Password"</code>.</li>
+        <li>Pulsa <code>"Sign Up"</code>. NumVerify crea tu cuenta al instante, sin confirmación de correo.</li>
+        <li>Entra a tu panel (<code>"Dashboard"</code>): tu llave aparece arriba como <code>"Your API Access Key"</code>. Cópiala.</li>
+        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+      </ol>
+      <div class="cmd"><span class="c"># guardar la llave una sola vez</span>
+mexicosint --set-key numverify TU_KEY</div>
+      <p>Listo. El consenso multi-fuente ahora vota con tres fuentes independientes.</p>
+      <a class="signup" href="https://numverify.com/signup/free/monthly">Crear cuenta gratis en NumVerify</a>
+    </div>
+
+    <div class="api">
+      <div class="api-head">
+        <h3>Geoapify — Localidad de numeración</h3>
+        <span class="pill">MAPAS</span>
+        <span class="pill">OPCIONAL</span>
+      </div>
+      <p><b>Qué hace:</b> convierte una localidad de numeración mexicana en coordenadas aproximadas para mapas. MeXiCOSINT usa filtro de país México y consultas estructuradas.</p>
+      <p><b>Importante:</b> esto representa la localidad de numeración, no la ubicación en vivo del teléfono ni del suscriptor.</p>
+      <div class="cmd">mexicosint --set-key geoapify TU_KEY</div>
+    </div>
+
+    <div class="api">
+      <div class="api-head">
+        <h3>Google Places — Fichas públicas de negocio</h3>
+        <span class="pill">NEGOCIOS</span>
+        <span class="pill">OPCIONAL</span>
+      </div>
+      <p><b>Qué hace:</b> busca posibles fichas públicas asociadas al número y normaliza nombre, categoría, dirección pública, sitio web, Maps URL y place ID.</p>
+      <p><b>Importante:</b> una posible ficha pública no identifica al suscriptor.</p>
+      <div class="cmd">mexicosint --set-key google_places TU_KEY</div>
+    </div>
+
+    <div class="api">
+      <div class="api-head">
+        <h3>IPQualityScore — Reputación telefónica</h3>
+        <span class="pill">RIESGO</span>
+        <span class="pill">OPCIONAL</span>
+      </div>
+      <p><b>Qué hace:</b> agrega evidencia normalizada de validez, actividad, riesgo, abuso reciente, VoIP, operadora y tipo de línea.</p>
+      <div class="cmd">mexicosint --set-key ipqualityscore TU_KEY</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <b>MeXiCOSINT</b> — OSINT para números telefónicos mexicanos.<br>
+      Autor: <b>KiMiGuEL</b> · Licencia MIT · Para investigación autorizada y fines educativos.
+    </div>
+    <div>
+      <a href="https://github.com/KiMiGuel/MeXiCOSINT">GitHub</a>
+      <a href="https://pypi.org/project/mexicosint/">PyPI</a>
+      <a href="https://github.com/KiMiGuel/MeXiCOSINT/releases">Releases</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

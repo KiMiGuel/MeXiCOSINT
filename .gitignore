@@ -39,6 +39,7 @@ output/
 results/
 *.log
 *.html
+!docs/index.html
 
 # IDE/editor files
 .vscode/
