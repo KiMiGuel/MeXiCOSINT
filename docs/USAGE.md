@@ -55,14 +55,18 @@ Ejemplos:
 ```bash
 mexicosint 5512345678
 mexicosint +525512345678
+mexicosint "52-663-464-7308"
+mexicosint "(663) 464-7308"
 ```
+
+Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.
 
 ---
 
 ## Todas las opciones
 
 ```text
-mexicosint [-h] [--ip ADDRESS] [--dummy-test] [-b]
+mexicosint [-h] [--dummy-test] [-b]
            [--set-key SERVICIO KEY] [--list-keys] [--config-path]
            [--version] [number]
 ```
@@ -70,7 +74,6 @@ mexicosint [-h] [--ip ADDRESS] [--dummy-test] [-b]
 | Opción | Descripción |
 |---|---|
 | `number` | Número telefónico mexicano a escanear |
-| `--ip ADDRESS` | Geolocaliza una IP pública (combinable con número) |
 | `--dummy-test` | Datos de prueba, sin llamadas reales a APIs |
 | `-b`, `--compact-banner` | Fuerza el banner compacto (alias: `--small-banner`) |
 | `--set-key SERVICIO KEY` | Guarda una API key en el archivo de configuración |
@@ -87,19 +90,6 @@ Escaneo básico:
 
 ```bash
 mexicosint 5512345678
-```
-
-Geolocalizar una IP pública:
-
-```bash
-mexicosint --ip 8.8.8.8
-```
-
-Escaneo combinado número + IP (el orden no importa):
-
-```bash
-mexicosint 5512345678 --ip 8.8.8.8
-mexicosint --ip 8.8.8.8 5512345678
 ```
 
 Prueba sin consumir créditos de API:
@@ -125,12 +115,13 @@ Ya no necesitas editar el archivo de configuración a mano.
 Guardar una key:
 
 ```bash
-mexicosint --set-key opencage TU_KEY
-mexicosint --set-key shodan TU_KEY
+mexicosint --set-key geoapify TU_KEY
+mexicosint --set-key google_places TU_KEY
+mexicosint --set-key ipqualityscore TU_KEY
 mexicosint --set-key abstract TU_KEY
 ```
 
-Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `shodan`, `ip2location`, `ipinfo`, `opencage`.
+Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `geoapify`, `google_places`, `ipqualityscore`.
 
 Ver el estado de las keys (enmascaradas):
 
@@ -150,7 +141,7 @@ El archivo se crea con permisos `0o600` (solo tu usuario puede leerlo).
 
 ## Resultados: base oficial IFT/PNN
 
-Desde la versión 2.4.0, MeXiCOSINT incluye la **base oficial del Plan Nacional de Numeración (IFT)** integrada — más de 177,000 bloques de numeración asignada en México, consultada **offline** (sin internet, sin API keys).
+Desde la versión 2.5.0, MeXiCOSINT incluye la **base oficial del Plan Nacional de Numeración (IFT)** integrada — más de 177,000 bloques de numeración asignada en México, consultada **offline** (sin internet, sin API keys).
 
 Cada escaneo puede mostrar:
 
@@ -196,8 +187,9 @@ Dependiendo de la configuración y API keys disponibles, un escaneo puede mostra
 * Operadora y ubicación reportadas por APIs (Abstract, NumVerify)
 * Consenso de ubicación entre fuentes
 * Enlaces de investigación OSINT
-* Resultados Shodan (si la key está configurada)
-* Geolocalización aproximada de la localidad + mapa HTML
+* Geoapify para localidad de numeración + mapa HTML
+* Google Places para posibles fichas públicas de negocio
+* IPQualityScore para reputación y abuso telefónico
 * Reporte JSON exportado en `output/reports/`
 
 > Los enlaces OSINT completos también quedan guardados en el reporte JSON.
@@ -210,7 +202,7 @@ MeXiCOSINT funciona parcialmente sin keys:
 
 ```text
 Sin API keys: validación, parsing local, base IFT completa, LADA, enlaces OSINT
-Con API keys: enriquecimiento adicional, consenso entre fuentes, mapas, Shodan
+Con API keys: enriquecimiento adicional, consenso entre fuentes, mapas y reputación telefónica
 ```
 
 La base IFT funciona siempre, con o sin keys.

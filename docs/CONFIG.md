@@ -34,12 +34,11 @@ Ejemplo:
 
 ```json
 {
-  "abstractapi_key": "TU_ABSTRACTAPI_KEY",
-  "numverify_key": "TU_NUMVERIFY_KEY",
-  "shodan_key": "TU_SHODAN_KEY",
-  "ipinfo_key": "TU_IPINFO_KEY",
-  "ip2location_key": "TU_IP2LOCATION_KEY",
-  "opencage_key": "TU_OPENCAGE_KEY"
+  "abstract_phone_intelligence": "TU_ABSTRACTAPI_KEY",
+  "numverify": "TU_NUMVERIFY_KEY",
+  "geoapify": "TU_GEOAPIFY_KEY",
+  "google_places": "TU_GOOGLE_PLACES_KEY",
+  "ipqualityscore": "TU_IPQUALITYSCORE_KEY"
 }
 ```
 
@@ -69,10 +68,9 @@ Sin embargo, algunas funciones tendrán mejores resultados si se configuran serv
 | ----------- | ------------------------------------------------------------ |
 | AbstractAPI | Validación y enriquecimiento de números telefónicos          |
 | NumVerify   | Validación secundaria de números telefónicos                 |
-| Shodan      | Enriquecimiento opcional relacionado con servicios expuestos |
-| IPInfo      | Enriquecimiento de metadatos IP                              |
-| IP2Location | Enriquecimiento de metadatos IP                              |
-| OpenCage    | Geocodificación y soporte para mapas                         |
+| Geoapify    | Geocodificación de localidad de numeración mexicana          |
+| Google Places | Posibles fichas públicas de negocio                        |
+| IPQualityScore | Validación, reputación y abuso telefónico                 |
 
 ---
 
@@ -93,7 +91,7 @@ Con API keys:
 - Enriquecimiento adicional
 - Validación secundaria
 - Más fuentes de comparación
-- Mejor contexto para reportes
+- Mapas de localidad de numeración y reputación telefónica
 ```
 
 ---
