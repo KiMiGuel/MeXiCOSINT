@@ -9,18 +9,15 @@ from mexicosint import __version__
 EPILOG = """ejemplos:
   mexicosint 5512345678                  Escanea un numero mexicano
   mexicosint +525512345678               Formato internacional tambien funciona
-  mexicosint --ip 8.8.8.8                Geolocaliza una IP publica
-  mexicosint 5512345678 --ip 8.8.8.8     Escaneo combinado: numero + IP
-  mexicosint --ip 8.8.8.8 5512345678     Lo mismo, el orden no importa
   mexicosint -b 5512345678               Banner compacto
   mexicosint --dummy-test 5512345678     Datos de prueba, sin llamadas a APIs
-  mexicosint --set-key opencage TU_KEY   Guarda una API key
+  mexicosint --set-key geoapify TU_KEY   Guarda una API key
   mexicosint --list-keys                 Muestra keys guardadas (enmascaradas)
   mexicosint --config-path               Ruta del archivo de configuracion
 
 servicios validos para --set-key:
-  abstract (alias de abstract_phone_intelligence), numverify, shodan,
-  ip2location, ipinfo, opencage
+  abstract (alias de abstract_phone_intelligence), numverify,
+  opencage, geoapify, google_places, ipqualityscore
 """
 
 
@@ -30,17 +27,18 @@ def build_parser() -> argparse.ArgumentParser:
         description="OSINT para numeros telefonicos Mexicanos.",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,
+    )
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help="Muestra esta ayuda y sale.",
     )
     parser.add_argument(
         "number",
         nargs="?",
         help="Numero telefonico mexicano a escanear.",
-    )
-    parser.add_argument(
-        "--ip",
-        dest="ip",
-        metavar="ADDRESS",
-        help="Geolocaliza una IP publica. Combinable con un numero.",
     )
     parser.add_argument(
         "--dummy-test",
@@ -75,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
+        help="Muestra la version instalada y sale.",
     )
     return parser
 
@@ -82,8 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
 def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
     """Translate argparse output to the scanner argument format.
 
-    Number goes first; --ip travels as a flag pair so the scanner can
-    run combined scans regardless of argument order on the command line.
+    Number goes first for the scanner entrypoint.
     """
     argv: list[str] = []
     if args.dummy_test:
@@ -92,8 +90,6 @@ def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
         argv.append("--small-banner")
     if args.number:
         argv.append(args.number)
-    if args.ip:
-        argv.extend(["--ip", args.ip])
     return argv
 
 
@@ -114,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         from mexicosint.main import set_key_cli
         return set_key_cli(args.set_key[0], args.set_key[1])
 
-    if not args.ip and not args.number:
+    if not args.number:
         parser.print_help()
         return 1
 
