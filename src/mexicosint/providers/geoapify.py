@@ -21,7 +21,7 @@ class GeoapifyProvider:
         if not self.api_key or not locality:
             return None
         params = {
-            "text": f"{locality}, Mexico",
+            "text": locality,
             "filter": "countrycode:mx",
             "format": "geojson",
             "limit": 1,

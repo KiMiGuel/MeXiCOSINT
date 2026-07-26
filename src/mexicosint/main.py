@@ -32,23 +32,26 @@ Correcciones v2.2.4:
 
 import requests
 import sys
-import os
 import json
 import re
 import urllib.parse
 import hashlib
 import uuid
 import unicodedata
-import stat
+import copy
 from pathlib import Path
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 
+from mexicosint import config as config_store
+from mexicosint.evidence import SourceVote, decide_evidence, normalize_city
 from mexicosint.numbering import normalize_mx_number
 from mexicosint.modules.local_parser import parse_mx_number
 from mexicosint.providers.geoapify import GeoapifyProvider
 from mexicosint.providers.google_places import GooglePlacesProvider
+from mexicosint.providers.google_places import GooglePlacesError
 from mexicosint.providers.ipqualityscore import IPQualityScoreProvider
+from mexicosint.providers.opencage import OpenCageProvider
 
 try:
     from mexicosint.modules.ift_blocks import lookup_block, modality_label
@@ -64,20 +67,14 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
-CONFIG_PATH = Path.home() / ".mx_osint_config.json"
+CONFIG_PATH = config_store.CONFIG_PATH
 OUTPUT_DIR = Path("output")
 REPORT_DIR = OUTPUT_DIR / "reports"
 MAP_DIR = OUTPUT_DIR / "maps"
 for d in (REPORT_DIR, MAP_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
-SAMPLE_CONFIG = {
-    "abstract_phone_intelligence": "",
-    "numverify": "",
-    "geoapify": "",
-    "google_places": "",
-    "ipqualityscore": ""
-}
+SAMPLE_CONFIG = config_store.SAMPLE_CONFIG
 
 DUMMY_MODE = False
 SMALL_BANNER = False
@@ -89,14 +86,6 @@ def _sha256(data: str) -> str:
 
 def _now_utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-@dataclass
-class SourceVote:
-    city: str
-    source: str
-    confidence: float
-    extra: str = ""
 
 
 @dataclass
@@ -118,6 +107,10 @@ class ScanResult:
     ift_zona: str = ""
     ift_fecha_asignacion: str = ""
     ift_service_type: str = ""
+    canonical_locality_city: str = ""
+    canonical_locality_state: str = ""
+    canonical_locality_query: str = ""
+    canonical_locality_source: str = ""
     abstract_data: dict = field(default_factory=dict)
     numverify_data: dict = field(default_factory=dict)
     abstract_location: str = ""
@@ -129,16 +122,22 @@ class ScanResult:
     consensus_city: str = ""
     consensus_confidence: float = 0.0
     consensus_sources: list = field(default_factory=list)
+    evidence_state: str = "no usable locality"
     all_votes: list = field(default_factory=list)
     latitude: float = None
     longitude: float = None
     nominatim_address: str = ""
+    opencage_data: dict = field(default_factory=dict)
+    opencage_latitude: float = None
+    opencage_longitude: float = None
+    opencage_address: str = ""
     geoapify_data: dict = field(default_factory=dict)
     geoapify_latitude: float = None
     geoapify_longitude: float = None
     geoapify_address: str = ""
     google_places_data: dict = field(default_factory=dict)
     ipqualityscore_data: dict = field(default_factory=dict)
+    provider_trace: list = field(default_factory=list)
     osint_links: dict = field(default_factory=dict)
     map_path: str = ""
     report_path: str = ""
@@ -301,140 +300,36 @@ def print_banner():
     print()
 
 
-# --- CONFIG ---
-# FIX #10: Config keys stored with restrictive file permissions (0o600)
 def init_config():
-    if DUMMY_MODE:
-        print("[*] Modo dummy: usando configuracion de prueba en memoria.")
-        return {k: f"dummy_key_{k}" for k in SAMPLE_CONFIG}
-
-    if not CONFIG_PATH.exists():
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
-            json.dump(SAMPLE_CONFIG, f, indent=2, ensure_ascii=False)
-        # FIX #10: Set restrictive permissions (owner read/write only)
-        os.chmod(CONFIG_PATH, stat.S_IRUSR | stat.S_IWUSR)
-        print(f"[!] Archivo de configuracion creado: {CONFIG_PATH}")
-        print("[!] Editalo y agrega tus API keys, luego ejecuta de nuevo.")
-        sys.exit(0)
-
-    # FIX #10: Verify permissions are restrictive
-    config_stat = CONFIG_PATH.stat()
-    current_mode = config_stat.st_mode & 0o777
-    if current_mode != 0o600:
-        print(f"[!] ADVERTENCIA: Permisos del config son {oct(current_mode)}, deberian ser 0o600.")
-        print(f"    Ejecuta: chmod 600 {CONFIG_PATH}")
-
-    with open(CONFIG_PATH, encoding='utf-8') as f:
-        return json.load(f)
+    return config_store.init_config(CONFIG_PATH, DUMMY_MODE)
 
 
 def check_keys(config):
-    print("\n[*] Estado de API Keys:")
-    active = []
-    # Normalize legacy/short key names to canonical names used by the script
-    key_aliases = {
-        "abstract": ["abstract_phone_intelligence"],
-    }
-    canonical_config = {}
-    for k, v in config.items():
-        if k in SAMPLE_CONFIG:
-            canonical_config[k] = v
-        elif k in key_aliases:
-            for canonical in key_aliases[k]:
-                canonical_config.setdefault(canonical, v)
-        else:
-            canonical_config[k] = v
-
-    for k, v in canonical_config.items():
-        if DUMMY_MODE:
-            print(f"    {k:30} OK (dummy)")
-            active.append(k)
-        elif isinstance(v, str) and len(v) > 5:
-            print(f"    {k:30} OK (presente)")
-            active.append(k)
-        else:
-            print(f"    {k:30} FALTANTE")
-    if not DUMMY_MODE:
-        print("[!] Nota: 'OK' solo indica que la key no esta vacia.")
-        print("    No se valido contra la API para no consumir creditos.")
-    return active
+    return config_store.check_keys(config, DUMMY_MODE)
 
 
 def _get_api_key(config, key):
-    """Return config key, falling back to legacy short names."""
-    if config.get(key):
-        return config[key]
-    if key == "abstract_phone_intelligence" and config.get("abstract"):
-        return config["abstract"]
-    return ""
+    return config_store.get_api_key(config, key)
 
 
 # --- API KEY MANAGEMENT (CLI) ---
-SERVICE_ALIASES = {
-    "abstract": "abstract_phone_intelligence",
-}
+SERVICE_ALIASES = config_store.SERVICE_ALIASES
 
 
 def _canonical_service(name: str) -> str:
-    name = name.strip().lower()
-    return SERVICE_ALIASES.get(name, name)
+    return config_store.canonical_service(name)
 
 
 def _mask_key(value: str) -> str:
-    if not isinstance(value, str) or len(value) <= 5:
-        return "FALTANTE"
-    return f"{value[:4]}{'*' * 8} (guardada, {len(value)} caracteres)"
+    return config_store.mask_key(value)
 
 
 def set_key_cli(service: str, key: str) -> int:
-    """Save an API key to the config file. Returns process exit code."""
-    canonical = _canonical_service(service)
-    if canonical not in SAMPLE_CONFIG:
-        print(f"[!] Servicio desconocido: '{service}'")
-        print(f"    Servicios validos: {', '.join(SAMPLE_CONFIG)}")
-        aliases = ", ".join(f"{a} -> {c}" for a, c in SERVICE_ALIASES.items())
-        print(f"    Alias: {aliases}")
-        return 1
-
-    config = {}
-    if CONFIG_PATH.exists():
-        try:
-            with open(CONFIG_PATH, encoding="utf-8") as f:
-                config = json.load(f)
-        except (json.JSONDecodeError, OSError) as e:
-            print(f"[!] No se pudo leer {CONFIG_PATH}: {e}")
-            return 1
-    else:
-        config = dict(SAMPLE_CONFIG)
-
-    config[canonical] = key.strip()
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2, ensure_ascii=False)
-    os.chmod(CONFIG_PATH, stat.S_IRUSR | stat.S_IWUSR)
-    print(f"[+] Key guardada para '{canonical}' en {CONFIG_PATH}")
-    print("    Permisos: 0o600 (solo tu usuario puede leerla).")
-    return 0
+    return config_store.set_key(service, key, CONFIG_PATH)
 
 
 def list_keys_cli() -> int:
-    """Print masked API key status. Returns process exit code."""
-    print(f"[*] Archivo de configuracion: {CONFIG_PATH}")
-    if not CONFIG_PATH.exists():
-        print("    No existe todavia. Usa --set-key para crear la primera key.")
-        return 0
-    try:
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            config = json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
-        print(f"[!] No se pudo leer el config: {e}")
-        return 1
-    print("[*] Estado de API Keys:")
-    for service in SAMPLE_CONFIG:
-        print(f"    {service:30} {_mask_key(config.get(service, ''))}")
-    extra = [k for k in config if k not in SAMPLE_CONFIG]
-    for service in extra:
-        print(f"    {service:30} {_mask_key(config.get(service, ''))} (extra)")
-    return 0
+    return config_store.list_keys(CONFIG_PATH)
 
 
 # --- MEXICO LADA DATABASE (FIX #4: Official IFT data) ---
@@ -585,11 +480,21 @@ def geocode_phonenumbers(parsed):
 # --- NOMINATIM GEOCODING ---
 # Vague/generic locations that should NOT be geocoded (false positive prevention)
 VAGUE_LOCATIONS = {
-    "unknown", "mexico", "méxico", "ciudad de mexico", "ciudad de méxico",
-    "cdmx", "distrito federal", "mexico city", "méxico city", "unknown city",
+    "unknown", "mexico", "méxico", "unknown city",
     "n/a", "not found", "sin informacion", "no hay informacion",
     "desconocido", "indefinido", "general", "nacional", "republica mexicana",
     "estados unidos mexicanos",
+}
+GENERIC_LOCALITIES = {
+    "northwest", "north west", "noroeste", "noroeste de mexico",
+    "northeast", "north east", "noreste", "noreste de mexico",
+    "central", "centro", "sur", "south", "southeast", "south east", "sureste",
+    "southwest", "south west", "suroeste", "baja california", "baja california sur",
+    "sonora", "chihuahua", "coahuila", "nuevo leon", "tamaulipas", "sinaloa",
+    "durango", "zacatecas", "jalisco", "colima", "michoacan", "guanajuato",
+    "queretaro", "hidalgo", "estado de mexico", "morelos", "puebla", "tlaxcala",
+    "veracruz", "guerrero", "oaxaca", "chiapas", "tabasco", "campeche",
+    "yucatan", "quintana roo", "aguascalientes", "nayarit", "san luis potosi",
 }
 
 def _normalize_for_vague(city_region: str) -> str:
@@ -598,8 +503,116 @@ def _normalize_for_vague(city_region: str) -> str:
     city_region = unicodedata.normalize('NFKD', city_region).encode('ASCII', 'ignore').decode('ASCII')
     return city_region
 
+
+def _is_concrete_locality(city_region: str) -> bool:
+    if not city_region:
+        return False
+    normalized = _normalize_for_vague(city_region)
+    normalized = re.sub(r"[^a-z0-9\s,]", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    compact = normalized.replace(",", " ").strip()
+    if not compact:
+        return False
+    if compact in VAGUE_LOCATIONS or compact in GENERIC_LOCALITIES:
+        return False
+    return any(char.isalpha() for char in compact) and len(compact) >= 3
+
+
+def _clean_place_name(value: str) -> str:
+    value = (value or "").strip()
+    if not value or value.lower() == "unknown":
+        return ""
+    value = unicodedata.normalize("NFKD", value).encode("ASCII", "ignore").decode("ASCII")
+    aliases = {
+        "CDMX": "Ciudad de Mexico",
+        "Distrito Federal": "Ciudad de Mexico",
+        "Mexico City": "Ciudad de Mexico",
+    }
+    return aliases.get(value, value)
+
+
+def _split_lada_region(region: str) -> tuple[str, str]:
+    if not region or "," not in region:
+        return "", ""
+    city, state = [part.strip() for part in region.split(",", 1)]
+    return _clean_place_name(city), _clean_place_name(state)
+
+
+def _set_canonical_locality(result: ScanResult, local_info: dict, has_ift_block: bool) -> None:
+    city = _clean_place_name(local_info.get("city", ""))
+    state = _clean_place_name(local_info.get("state", ""))
+    if not city or not state:
+        city, state = _split_lada_region(result.lada_region)
+    locality = f"{city}, {state}" if city and state else ""
+    if not _is_concrete_locality(locality):
+        return
+    result.canonical_locality_city = city
+    result.canonical_locality_state = state
+    result.canonical_locality_query = f"{city}, {state}, Mexico"
+    result.canonical_locality_source = "IFT/PNN exact block + LADA" if has_ift_block else "LADA"
+
+
+def _locality_compare_key(value: str) -> str:
+    value = value or ""
+    first = value.split(",", 1)[0].strip()
+    return normalize_city(first or value)
+
+
+def _trace_provider(result: ScanResult, provider: str, status: str, normalized, locality_query: str = "", note: str = ""):
+    entry = {
+        "provider": provider,
+        "status": status,
+        "e164": normalized.e164,
+        "international_digits": normalized.international_digits,
+    }
+    if locality_query:
+        entry["locality_query"] = locality_query
+    if note:
+        entry["note"] = note
+    result.provider_trace.append(entry)
+    detail = f" input={normalized.e164}"
+    if locality_query:
+        detail += f" locality={locality_query}"
+    if note:
+        detail += f" note={note}"
+    print(f"    [trace] {provider}: {status}{detail}")
+
+
+def _trace_google_places_error(result: ScanResult, normalized, diagnostic: dict) -> None:
+    safe = {
+        "provider": "Google Places",
+        "status": diagnostic.get("failure_kind", "error"),
+        "e164": normalized.e164,
+        "international_digits": normalized.international_digits,
+        "endpoint_type": diagnostic.get("endpoint_type", ""),
+        "http_status": diagnostic.get("http_status"),
+        "google_status": diagnostic.get("google_status", ""),
+        "google_code": diagnostic.get("google_code"),
+        "message": diagnostic.get("message", ""),
+    }
+    result.provider_trace.append(safe)
+    print(
+        "    [trace] Google Places: "
+        f"{safe['status']} input={normalized.e164} "
+        f"endpoint={safe['endpoint_type']} "
+        f"http={safe['http_status']} "
+        f"google_status={safe['google_status']} "
+        f"message={safe['message']}"
+    )
+
+
+def _lookup_cached_geocoder(provider, locality: str):
+    lookup = provider.lookup
+    before = lookup.cache_info() if hasattr(lookup, "cache_info") else None
+    evidence = lookup(locality)
+    after = lookup.cache_info() if hasattr(lookup, "cache_info") else None
+    status = "live_request"
+    if before and after:
+        status = "cache_hit" if after.hits > before.hits else "cache_miss"
+    return evidence, status
+
 def geocode_nominatim(city_region):
-    if not city_region or _normalize_for_vague(city_region) in VAGUE_LOCATIONS:
+    if not _is_concrete_locality(city_region):
         return None, None, ""
     if DUMMY_MODE:
         return None, None, ""
@@ -624,7 +637,7 @@ def geocode_nominatim(city_region):
 # --- API CALLS ---
 def abstract_phone_intelligence_lookup(e164, api_key):
     if DUMMY_MODE:
-        return SAMPLE_ABSTRACT_INTEL
+        return copy.deepcopy(SAMPLE_ABSTRACT_INTEL)
 
     url = "https://phoneintelligence.abstractapi.com/v1/"
     params = {"api_key": api_key, "phone": e164}
@@ -645,7 +658,7 @@ def abstract_phone_intelligence_lookup(e164, api_key):
 
 def numverify_lookup(e164, api_key):
     if DUMMY_MODE:
-        return SAMPLE_NUMVERIFY
+        return copy.deepcopy(SAMPLE_NUMVERIFY)
 
     url = "https://apilayer.net/api/validate"
     number_clean = e164.replace("+", "")
@@ -745,103 +758,59 @@ def parse_numverify(data):
     }
 
 
-# --- CONSENSUS VOTING ---
-# FIX #2: Confidence calculation requires at least 2 sources for 95%
-CITY_ALIASES = {
-    "mexico city": "ciudad de mexico",
-    "cdmx": "ciudad de mexico",
-    "ciudad de mexico cdmx": "ciudad de mexico",
-    "ciudad de mexico": "ciudad de mexico",
-    "ciudad de mexico cdmx": "ciudad de mexico",
-    "distrito federal": "ciudad de mexico",
-    "nuevo leon": "monterrey",
-    "monterrey nuevo leon": "monterrey",
-    "jalisco": "guadalajara",
-    "guadalajara jalisco": "guadalajara",
-    "queretaro queretaro": "queretaro",
-    "san luis potosi slp": "san luis potosi",
-    "baja california": "tijuana",
-    "sinaloa": "culiacan",
-    "yucatan": "merida",
-    "quintana roo": "cancun",
-    "puebla puebla": "puebla",
-    "veracruz veracruz": "veracruz",
-}
-
-
 def _normalize_city(city: str) -> str:
-    if not city:
-        return ""
-    city = city.lower().strip()
-    # Remove accents and normalize to ASCII
-    city = unicodedata.normalize('NFKD', city).encode('ASCII', 'ignore').decode('ASCII')
-    city = re.sub(r"[^a-z0-9\s]", " ", city)
-    city = re.sub(r"\s+", " ", city).strip()
-    return CITY_ALIASES.get(city, city)
+    return normalize_city(city)
 
 
 def run_consensus(result: ScanResult):
     votes = []
 
     def add(city, source, confidence, extra=""):
-        if city and str(city).lower() not in ("", "n/a", "unknown", "mexico"):
+        if _is_concrete_locality(str(city or "")):
             votes.append(SourceVote(str(city).strip(), source, confidence, extra))
 
-    # phonenumbers (libphonenumber/Google) is the primary geographic source.
-    # LADA hardcoded maps are kept for reference only because number portability
-    # and maintained metadata make them less reliable than phonenumbers/APIs.
+    canonical = ""
+    if result.canonical_locality_city and result.canonical_locality_state:
+        canonical = f"{result.canonical_locality_city}, {result.canonical_locality_state}"
+        add(canonical, result.canonical_locality_source or "IFT/LADA", 1.0)
     if result.region_phonenumbers:
         add(result.region_phonenumbers, "phonenumbers", 0.60)
     if result.abstract_location:
         add(result.abstract_location, "AbstractAPI", 0.80)
     if result.numverify_location:
         add(result.numverify_location, "NumVerify", 0.75)
+    if result.ipqualityscore_data.get("city") or result.ipqualityscore_data.get("region"):
+        ipqs_location = ", ".join(
+            part for part in [
+                result.ipqualityscore_data.get("city", ""),
+                result.ipqualityscore_data.get("region", ""),
+            ] if part
+        )
+        add(ipqs_location, "IPQualityScore", 0.65)
 
+    decision = decide_evidence(votes)
     result.all_votes = votes
-
-    if not votes:
-        result.consensus_city = ""
+    if canonical:
+        result.consensus_city = canonical
         result.consensus_confidence = 0.0
-        result.consensus_sources = []
-        return
-
-    scores = {}
-    for v in votes:
-        key = _normalize_city(v.city)
-        if not key:
-            continue
-        if key not in scores:
-            scores[key] = {"score": 0.0, "count": 0, "sources": [], "originals": {}}
-        scores[key]["score"] += v.confidence
-        scores[key]["count"] += 1
-        scores[key]["sources"].append(v.source)
-        # Track original strings to pick the most common / highest-confidence label
-        orig = v.city.strip()
-        scores[key]["originals"][orig] = scores[key]["originals"].get(orig, 0.0) + v.confidence
-
-    if not scores:
-        result.consensus_city = votes[0].city
-        result.consensus_confidence = votes[0].confidence
-        result.consensus_sources = [votes[0].source]
-        return
-
-    best_key, best = max(scores.items(), key=lambda x: x[1]["score"])
-    total_apis = len(votes)
-    agreeing = best["count"]
-
-    # FIX #2: Require at least 2 sources for high confidence (95%)
-    # Single source maxes at 70% regardless of individual confidence
-    if agreeing == 1:
-        combined = min(0.70, best["score"])
+        result.consensus_sources = [result.canonical_locality_source]
+        supporting = [vote for vote in votes if vote.source != result.canonical_locality_source]
+        canonical_key = _locality_compare_key(canonical)
+        agreeing = [vote for vote in supporting if _locality_compare_key(vote.city) == canonical_key]
+        conflicting = [vote for vote in supporting if _locality_compare_key(vote.city) != canonical_key]
+        if agreeing and not conflicting:
+            result.evidence_state = "strong agreement"
+        elif agreeing and conflicting:
+            result.evidence_state = "partial agreement"
+        elif conflicting:
+            result.evidence_state = "conflicting sources"
+        else:
+            result.evidence_state = "single-source result"
     else:
-        combined = min(0.95, best["score"] / total_apis + (agreeing / total_apis) * 0.3)
-
-    # Pick the original label with highest cumulative confidence
-    best_original = max(best["originals"].items(), key=lambda x: x[1])[0]
-
-    result.consensus_city = best_original
-    result.consensus_confidence = round(combined, 2)
-    result.consensus_sources = best["sources"]
+        result.consensus_city = decision.city
+        result.consensus_confidence = 0.0
+        result.consensus_sources = decision.sources
+        result.evidence_state = decision.state
 
 
 # --- MAP GENERATION ---
@@ -1035,17 +1004,17 @@ def rich_print_consensus(result: ScanResult):
     console = Console()
     if not result.all_votes:
         return
-    table = Table(title="🗳️  VOTACION DE UBICACION (CONSENSO)", box=box.ROUNDED,
+    table = Table(title="🗳️  EVIDENCIA DE LOCALIDAD", box=box.ROUNDED,
                   border_style="cyan", show_lines=True)
     table.add_column("Fuente", style="bold white", width=20)
     table.add_column("Ciudad / Region", style="green", width=30)
-    table.add_column("Confianza", style="yellow", width=12)
     for v in result.all_votes:
-        table.add_row(v.source, v.city, f"{int(v.confidence*100)}%")
-    table.add_row("", "", "")
-    table.add_row("[bold green]CONSENSO[/bold green]",
-                  f"[bold green]{result.consensus_city}[/bold green]",
-                  f"[bold green]{int(result.consensus_confidence*100)}%[/bold green]")
+        table.add_row(v.source, v.city)
+    table.add_row("", "")
+    table.add_row("[bold green]ESTADO[/bold green]",
+                  f"[bold green]{result.evidence_state}[/bold green]")
+    table.add_row("[bold green]LOCALIDAD[/bold green]",
+                  f"[bold green]{result.consensus_city or '—'}[/bold green]")
     console.print()
     console.print(table)
 
@@ -1053,11 +1022,12 @@ def rich_print_consensus(result: ScanResult):
 def plain_print_consensus(result: ScanResult):
     if not result.all_votes:
         return
-    print("\n[+] VOTACION DE UBICACION (CONSENSO):")
+    print("\n[+] EVIDENCIA DE LOCALIDAD:")
     print("-" * 60)
     for v in result.all_votes:
-        print(f"    {v.source:18} {v.city:30} {int(v.confidence*100)}%")
-    print(f"    >>> CONSENSO: {result.consensus_city} ({int(result.consensus_confidence*100)}%)")
+        print(f"    {v.source:18} {v.city}")
+    print(f"    Estado:         {result.evidence_state}")
+    print(f"    Localidad base: {result.consensus_city or '—'}")
 
 
 def rich_print_geo(result: ScanResult):
@@ -1066,10 +1036,14 @@ def rich_print_geo(result: ScanResult):
                   border_style="magenta", show_lines=True)
     table.add_column("Campo", style="bold yellow", width=28)
     table.add_column("Valor", style="bold white", width=50)
-    table.add_row("Ciudad consenso", result.consensus_city or "—")
-    table.add_row("Confianza", f"{int(result.consensus_confidence*100)}%")
+    table.add_row("Localidad base", result.consensus_city or "—")
     table.add_row("Latitud", f"{result.latitude:.5f}" if result.latitude else "—")
     table.add_row("Longitud", f"{result.longitude:.5f}" if result.longitude else "—")
+    table.add_row("OpenCage lat/lon",
+                  f"{result.opencage_latitude:.5f}, {result.opencage_longitude:.5f}"
+                  if result.opencage_latitude and result.opencage_longitude else "—")
+    table.add_row("OpenCage address",
+                  (result.opencage_address[:70] + "...") if result.opencage_address else "—")
     table.add_row("Geoapify lat/lon",
                   f"{result.geoapify_latitude:.5f}, {result.geoapify_longitude:.5f}"
                   if result.geoapify_latitude and result.geoapify_longitude else "—")
@@ -1084,10 +1058,13 @@ def rich_print_geo(result: ScanResult):
 def plain_print_geo(result: ScanResult):
     print("\n[+] GEOLOCALIZACION APROXIMADA:")
     print("-" * 60)
-    print(f"    Ciudad consenso: {result.consensus_city or '—'}")
-    print(f"    Confianza:       {int(result.consensus_confidence*100)}%")
+    print(f"    Localidad base:  {result.consensus_city or '—'}")
     print(f"    Latitud:         {result.latitude:.5f}" if result.latitude else "    Latitud:         —")
     print(f"    Longitud:        {result.longitude:.5f}" if result.longitude else "    Longitud:        —")
+    if result.opencage_latitude and result.opencage_longitude:
+        print(f"    OpenCage lat/lon: {result.opencage_latitude:.5f}, {result.opencage_longitude:.5f}")
+    if result.opencage_address:
+        print(f"    OpenCage address: {result.opencage_address[:70]}")
     if result.geoapify_latitude and result.geoapify_longitude:
         print(f"    Geoapify lat/lon: {result.geoapify_latitude:.5f}, {result.geoapify_longitude:.5f}")
     if result.geoapify_address:
@@ -1184,12 +1161,17 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
     result.country_code = f"+{parsed.country_code}"
     result.national_number = str(parsed.national_number)
 
+    local_info = parse_mx_number(raw)
     result.region_phonenumbers = geocode_phonenumbers(parsed)
     result.lada_region = detect_lada_region(result.national_number)
+    if not result.lada_region and local_info.get("city") != "Unknown" and local_info.get("state") != "Unknown":
+        result.lada_region = f"{local_info.get('city')}, {local_info.get('state')}"
+    has_ift_block = False
     if IFT_BLOCKS_AVAILABLE:
         try:
             block = lookup_block(result.national_number)
             if block:
+                has_ift_block = True
                 result.ift_carrier = block.get("carrier", "")
                 result.ift_modality = modality_label(block.get("modality", ""))
                 result.ift_zona = block.get("zona", "")
@@ -1197,7 +1179,7 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
                 result.ift_service_type = block.get("service_type", "")
         except Exception as e:
             result.errors.append(f"ift_blocks: {e}")
-    local_info = parse_mx_number(raw)
+    _set_canonical_locality(result, local_info, has_ift_block)
     result.local_line_type = (
         "CELULAR PROBABLE"
         if local_info.get("is_mobile")
@@ -1212,41 +1194,63 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
 
     if "abstract_phone_intelligence" in active:
         try:
+            _trace_provider(result, "AbstractAPI", "fixture" if DUMMY_MODE else "live_request", normalized)
             api_results["abstract_intel"] = abstract_phone_intelligence_lookup(
                 e164, _get_api_key(config, "abstract_phone_intelligence")
             )
         except Exception as e:
             api_results["abstract_intel"] = None
             result.errors.append(f"abstract_intel: {e}")
+            _trace_provider(result, "AbstractAPI", "error", normalized, note=type(e).__name__)
+    else:
+        _trace_provider(result, "AbstractAPI", "skipped", normalized)
 
     if "numverify" in active:
         try:
+            _trace_provider(result, "NumVerify", "fixture" if DUMMY_MODE else "live_request", normalized)
             api_results["numverify"] = numverify_lookup(e164, _get_api_key(config, "numverify"))
         except Exception as e:
             api_results["numverify"] = None
             result.errors.append(f"numverify: {e}")
+            _trace_provider(result, "NumVerify", "error", normalized, note=type(e).__name__)
+    else:
+        _trace_provider(result, "NumVerify", "skipped", normalized)
 
     if "google_places" in active:
         try:
             if DUMMY_MODE:
-                result.google_places_data = SAMPLE_GOOGLE_PLACES
+                _trace_provider(result, "Google Places", "fixture", normalized)
+                result.google_places_data = copy.deepcopy(SAMPLE_GOOGLE_PLACES)
             else:
+                _trace_provider(result, "Google Places", "live_request", normalized)
                 places = GooglePlacesProvider(_get_api_key(config, "google_places")).lookup(normalized)
                 if places:
                     result.google_places_data = asdict(places)
+                    _trace_provider(result, "Google Places", places.match_status, normalized)
+        except GooglePlacesError as e:
+            result.errors.append(f"google_places: {e}")
+            _trace_google_places_error(result, normalized, e.diagnostic)
         except Exception as e:
             result.errors.append(f"google_places: {e}")
+            _trace_provider(result, "Google Places", "error", normalized, note=type(e).__name__)
+    else:
+        _trace_provider(result, "Google Places", "skipped", normalized)
 
     if "ipqualityscore" in active:
         try:
             if DUMMY_MODE:
-                result.ipqualityscore_data = SAMPLE_IPQUALITYSCORE
+                _trace_provider(result, "IPQualityScore", "fixture", normalized)
+                result.ipqualityscore_data = copy.deepcopy(SAMPLE_IPQUALITYSCORE)
             else:
+                _trace_provider(result, "IPQualityScore", "live_request", normalized)
                 reputation = IPQualityScoreProvider(_get_api_key(config, "ipqualityscore")).lookup(normalized)
                 if reputation:
                     result.ipqualityscore_data = asdict(reputation)
         except Exception as e:
             result.errors.append(f"ipqualityscore: {e}")
+            _trace_provider(result, "IPQualityScore", "error", normalized, note=type(e).__name__)
+    else:
+        _trace_provider(result, "IPQualityScore", "skipped", normalized)
 
     # Process Abstract Phone Intelligence results
     if "abstract_intel" in api_results and api_results["abstract_intel"]:
@@ -1266,21 +1270,51 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
     # Consensus
     run_consensus(result)
 
-    # Geocode consensus city (fallback to LADA region if consensus is vague)
-    geo_target = result.consensus_city
-    if geo_target and _normalize_for_vague(geo_target) in VAGUE_LOCATIONS and result.lada_region:
-        geo_target = result.lada_region
+    # Geocode only canonical concrete city/state locality.
+    geo_target = result.canonical_locality_query
 
-    if geo_target:
+    if not _is_concrete_locality(geo_target):
+        _trace_provider(result, "OpenCage", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
+        _trace_provider(result, "Geoapify", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
+        _trace_provider(result, "Nominatim", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
+    elif geo_target:
         if DUMMY_MODE:
             print("\n[*] Geocodificando localidad...")
             print("    [!] Omitido en modo dummy para evitar llamadas de red.")
-            result.geoapify_data = SAMPLE_GEOAPIFY
+            _trace_provider(result, "OpenCage", "fixture", normalized, locality_query=geo_target)
+            _trace_provider(result, "Geoapify", "fixture", normalized, locality_query=geo_target)
+            result.geoapify_data = copy.deepcopy(SAMPLE_GEOAPIFY)
         else:
-            print("\n[*] Geocodificando localidad de numeracion (Geoapify primario, Nominatim respaldo)...")
-            if "geoapify" in active:
+            print("\n[*] Geocodificando localidad de numeracion (OpenCage primario, Geoapify respaldo, Nominatim final)...")
+            if "opencage" in active:
                 try:
-                    locality = GeoapifyProvider(_get_api_key(config, "geoapify")).lookup(geo_target)
+                    locality, status = _lookup_cached_geocoder(
+                        OpenCageProvider(_get_api_key(config, "opencage")),
+                        geo_target,
+                    )
+                    _trace_provider(result, "OpenCage", status, normalized, locality_query=geo_target)
+                    if locality:
+                        result.opencage_data = asdict(locality)
+                        result.opencage_latitude = locality.latitude
+                        result.opencage_longitude = locality.longitude
+                        result.opencage_address = locality.formatted_address
+                except Exception as e:
+                    result.errors.append(f"opencage: {e}")
+                    _trace_provider(result, "OpenCage", "error", normalized, locality_query=geo_target, note=type(e).__name__)
+            else:
+                _trace_provider(result, "OpenCage", "skipped", normalized, locality_query=geo_target)
+
+            if result.opencage_latitude and result.opencage_longitude:
+                result.latitude, result.longitude = result.opencage_latitude, result.opencage_longitude
+                print("    [OpenCage] OK")
+                _trace_provider(result, "Geoapify", "skipped", normalized, locality_query=geo_target, note="opencage_result")
+            elif "geoapify" in active:
+                try:
+                    locality, status = _lookup_cached_geocoder(
+                        GeoapifyProvider(_get_api_key(config, "geoapify")),
+                        geo_target,
+                    )
+                    _trace_provider(result, "Geoapify", status, normalized, locality_query=geo_target)
                     if locality:
                         result.geoapify_data = asdict(locality)
                         result.geoapify_latitude = locality.latitude
@@ -1288,12 +1322,19 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
                         result.geoapify_address = locality.formatted_address
                 except Exception as e:
                     result.errors.append(f"geoapify: {e}")
+                    _trace_provider(result, "Geoapify", "error", normalized, locality_query=geo_target, note=type(e).__name__)
+            else:
+                _trace_provider(result, "Geoapify", "skipped", normalized, locality_query=geo_target)
+
             if result.geoapify_latitude and result.geoapify_longitude:
                 result.latitude, result.longitude = result.geoapify_latitude, result.geoapify_longitude
                 print("    [Geoapify] OK")
-            else:
-                print("    [Geoapify] Sin key/resultado, usando Nominatim...")
+            elif not result.latitude or not result.longitude:
+                print("    [OpenCage/Geoapify] Sin key/resultado, usando Nominatim...")
+                _trace_provider(result, "Nominatim", "live_request", normalized, locality_query=geo_target)
                 result.latitude, result.longitude, result.nominatim_address = geocode_nominatim(geo_target)
+            else:
+                _trace_provider(result, "Nominatim", "skipped", normalized, locality_query=geo_target)
 
     # Map
     if result.latitude and result.longitude:
@@ -1344,6 +1385,8 @@ def main(argv=None):
     global DUMMY_MODE, SMALL_BANNER
 
     args = list(sys.argv[1:] if argv is None else argv)
+    DUMMY_MODE = False
+    SMALL_BANNER = False
 
     if "--dummy-test" in args:
         DUMMY_MODE = True
