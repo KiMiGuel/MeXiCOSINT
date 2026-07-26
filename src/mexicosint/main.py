@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.5.0
+MeXicOSINT v2.5.1
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
 
@@ -293,7 +293,7 @@ def print_banner():
     print()
     print(GREEN + "╔══════════════════════════════════════════════════════════════════╗" + RESET)
     print(GREEN + "║                                                                  ║" + RESET)
-    print(WHITE + "║                    MeXicOSINT v2.5.0                             ║" + RESET)
+    print(WHITE + "║                    MeXicOSINT v2.5.1                             ║" + RESET)
     print(RED + "║              OSINT para numeros Mexicanos                        ║" + RESET)
     print(RED + "║                    Autor: KiMiGuEL                               ║" + RESET)
     print(RED + "╚══════════════════════════════════════════════════════════════════╝" + RESET)
@@ -624,7 +624,7 @@ def geocode_nominatim(city_region):
             "limit": 1,
             "countrycodes": "mx"
         }
-        headers = {"User-Agent": "MeXicOSINT/2.5.0 (OSINT research)"}
+        headers = {"User-Agent": "MeXicOSINT/2.5.1 (OSINT research)"}
         r = requests.get(url, params=params, headers=headers, timeout=10)
         data = r.json()
         if data:
