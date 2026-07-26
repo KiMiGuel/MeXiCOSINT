@@ -55,14 +55,18 @@ Ejemplos:
 ```bash
 mexicosint 5512345678
 mexicosint +525512345678
+mexicosint "52-663-464-7308"
+mexicosint "(663) 464-7308"
 ```
+
+Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.
 
 ---
 
 ## Todas las opciones
 
 ```text
-mexicosint [-h] [--ip ADDRESS] [--dummy-test] [-b]
+mexicosint [-h] [--dummy-test] [-b]
            [--set-key SERVICIO KEY] [--list-keys] [--config-path]
            [--version] [number]
 ```
@@ -70,7 +74,6 @@ mexicosint [-h] [--ip ADDRESS] [--dummy-test] [-b]
 | Opción | Descripción |
 |---|---|
 | `number` | Número telefónico mexicano a escanear |
-| `--ip ADDRESS` | Geolocaliza una IP pública (combinable con número) |
 | `--dummy-test` | Datos de prueba, sin llamadas reales a APIs |
 | `-b`, `--compact-banner` | Fuerza el banner compacto (alias: `--small-banner`) |
 | `--set-key SERVICIO KEY` | Guarda una API key en el archivo de configuración |
@@ -89,23 +92,10 @@ Escaneo básico:
 mexicosint 5512345678
 ```
 
-Geolocalizar una IP pública:
-
-```bash
-mexicosint --ip 8.8.8.8
-```
-
-Escaneo combinado número + IP (el orden no importa):
-
-```bash
-mexicosint 5512345678 --ip 8.8.8.8
-mexicosint --ip 8.8.8.8 5512345678
-```
-
 Prueba sin consumir créditos de API:
 
 ```bash
-mexicosint --dummy-test 5512345678
+mexicosint --dummy-test 6634647308
 ```
 
 Banner compacto:
@@ -113,10 +103,6 @@ Banner compacto:
 ```bash
 mexicosint -b 5512345678
 ```
-
-> Nota: las IPs privadas (192.168.x.x, 10.x.x.x, etc.) se detectan automáticamente y no consumen llamadas a APIs.
-
----
 
 ## Gestión de API keys
 
@@ -126,11 +112,14 @@ Guardar una key:
 
 ```bash
 mexicosint --set-key opencage TU_KEY
-mexicosint --set-key shodan TU_KEY
+mexicosint --set-key geoapify TU_KEY
+mexicosint --set-key google_places TU_KEY
+mexicosint --set-key ipqualityscore TU_KEY
 mexicosint --set-key abstract TU_KEY
+mexicosint --set-key numverify TU_KEY
 ```
 
-Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `shodan`, `ip2location`, `ipinfo`, `opencage`.
+Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `opencage`, `geoapify`, `google_places`, `ipqualityscore`.
 
 Ver el estado de las keys (enmascaradas):
 
@@ -150,7 +139,7 @@ El archivo se crea con permisos `0o600` (solo tu usuario puede leerlo).
 
 ## Resultados: base oficial IFT/PNN
 
-Desde la versión 2.4.0, MeXiCOSINT incluye la **base oficial del Plan Nacional de Numeración (IFT)** integrada — más de 177,000 bloques de numeración asignada en México, consultada **offline** (sin internet, sin API keys).
+Desde la versión 2.5.0, MeXiCOSINT incluye la **base oficial del Plan Nacional de Numeración (IFT)** integrada — más de 177,000 bloques de numeración asignada en México, consultada **offline** (sin internet, sin API keys).
 
 Cada escaneo puede mostrar:
 
@@ -193,11 +182,12 @@ Dependiendo de la configuración y API keys disponibles, un escaneo puede mostra
 * Validación del número y formato E.164
 * **Operadora, modalidad y fecha de asignación (IFT, offline)**
 * Región (phonenumbers) y referencia LADA
-* Operadora y ubicación reportadas por APIs (Abstract, NumVerify)
-* Consenso de ubicación entre fuentes
+* Operadora y ubicación reportadas por APIs (AbstractAPI, NumVerify, IPQualityScore) como evidencia de apoyo o conflicto
+* Localidad canónica IFT/LADA con atribución clara de fuente
 * Enlaces de investigación OSINT
-* Resultados Shodan (si la key está configurada)
-* Geolocalización aproximada de la localidad + mapa HTML
+* OpenCage, Geoapify o Nominatim para geocodificar la localidad IFT/LADA + mapa HTML
+* Google Places para posibles fichas públicas de negocio buscadas por número E.164
+* IPQualityScore para reputación y abuso telefónico
 * Reporte JSON exportado en `output/reports/`
 
 > Los enlaces OSINT completos también quedan guardados en el reporte JSON.
@@ -210,20 +200,44 @@ MeXiCOSINT funciona parcialmente sin keys:
 
 ```text
 Sin API keys: validación, parsing local, base IFT completa, LADA, enlaces OSINT
-Con API keys: enriquecimiento adicional, consenso entre fuentes, mapas, Shodan
+Con API keys: enriquecimiento adicional, geocodificación, fichas públicas de negocio y reputación telefónica
 ```
 
 La base IFT funciona siempre, con o sin keys.
 
 ---
 
+## Localidad y geocodificación
+
+La localidad mexicana se resuelve en este orden:
+
+1. Normaliza el número.
+2. Consulta exacta de bloque IFT.
+3. Ciudad/municipio y estado canónicos desde IFT.
+4. LADA solo como respaldo o evidencia de apoyo.
+5. Geocodificación únicamente de una consulta concreta: `<ciudad o municipio>, <estado>, Mexico`.
+
+AbstractAPI, NumVerify e IPQualityScore pueden aportar evidencia o conflicto, pero no reemplazan una localidad concreta de IFT/LADA. Valores vagos como `Mexico`, `NorthWest`, regiones genéricas, tipo de línea o país sin ciudad no se envían a geocodificadores.
+
+OpenCage se usa como geocodificador primario si tiene key. Geoapify se usa como fallback con key. Nominatim queda como fallback final sin key.
+
+Google Places busca el número E.164 normalizado directamente, con formato de búsqueda como `+52 664 483 7308`. IFT/LADA solo ayuda a validar o sesgar regionalmente una ficha pública candidata.
+
+---
+
+## Enlaces OSINT
+
+Los enlaces generados usan variantes exactas del número: WhatsApp por `wa.me`, búsqueda Google del E.164, dígitos internacionales, dígitos nacionales, formato espaciado y búsquedas `site:` para Facebook, TikTok, X y Twitter.
+
+---
+
 ## Modo de prueba
 
 ```bash
-mexicosint --dummy-test 5512345678
+mexicosint --dummy-test 6634647308
 ```
 
-Usa datos de ejemplo y no realiza llamadas reales a APIs. Pensado para desarrollo y pruebas.
+Usa datos de ejemplo y no realiza llamadas reales a APIs. Pensado para desarrollo y pruebas; también valida que el flujo de proveedores pueda ejecutarse sin keys reales.
 
 ---
 
@@ -294,4 +308,4 @@ debería mostrar la versión instalada, y:
 mexicosint 5512345678
 ```
 
-debería mostrar el banner, la información del suscriptor y la operadora oficial IFT.
+debería mostrar el banner, la información del número y la operadora oficial IFT.
