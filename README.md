@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Estado-Beta-orange.svg" alt="Estado Beta">
 </p>
 
-<h1 align="center">MeXiCOSINT</h1>
+<h1 align="center">MeXiCOSINT 📞🔍</h1>
 
 <p align="center">
   Herramienta OSINT enfocada en análisis, validación, enriquecimiento y reportes de números telefónicos mexicanos.
@@ -19,17 +19,17 @@
 
 ---
 
-## Descripción
+## Descripción 🧭
 
 **MeXiCOSINT** es una herramienta de OSINT desarrollada en Python y enfocada en números telefónicos mexicanos.
 
-La herramienta puede validar números, analizar formatos mexicanos, consultar fuentes opcionales mediante API, procesar metadatos disponibles y generar resultados útiles para investigación autorizada.
+La herramienta puede validar números, analizar formatos mexicanos, consultar fuentes opcionales mediante API, procesar metadatos disponibles y generar resultados útiles para investigación autor[...]
 
 > Este proyecto está en fase beta. Los resultados deben tratarse como indicadores OSINT, no como evidencia absoluta.
 
 ---
 
-## Características
+## Características ✨
 
 - Validación de números telefónicos mexicanos
 - Formato nacional e internacional
@@ -48,7 +48,7 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 
 ---
 
-## Estructura del repositorio
+## Estructura del repositorio 📂
 
 ```text
 MeXiCOSINT/
@@ -85,11 +85,11 @@ MeXiCOSINT/
 
 ---
 
-## Instalación
+## Instalación ⚙️
 
 ### Opción 1: pipx (recomendada)
 
-MeXiCOSINT está publicado en PyPI. La forma recomendada de instalarlo es con `pipx`, que instala el comando de forma global pero aislada, sin tocar el Python del sistema (importante en Kali Linux moderno, donde `pip install` global está bloqueado por PEP 668):
+MeXiCOSINT está publicado en PyPI. La forma recomendada de instalarlo es con `pipx`, que instala el comando de forma global pero aislada, sin tocar el Python del sistema (importante en Kali Linux[...]
 
 ```bash
 sudo apt install -y pipx
@@ -139,7 +139,7 @@ python3 tools/update_ift_blocks.py
 
 ---
 
-## Uso
+## Uso ▶️
 
 Ejecuta MeXiCOSINT usando el comando:
 
@@ -177,7 +177,7 @@ Usa `-b`, `--compact-banner` o el alias heredado `--small-banner` para forzar el
 
 ---
 
-## Documentación
+## Documentación 📚
 
 | Guía | Descripción |
 |---|---|
@@ -188,7 +188,7 @@ Usa `-b`, `--compact-banner` o el alias heredado `--small-banner` para forzar el
 
 ---
 
-## APIs opcionales
+## APIs opcionales 🔗
 
 Algunas funciones pueden depender de API keys externas.
 
@@ -203,7 +203,7 @@ Algunas funciones pueden depender de API keys externas.
 
 Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.
 
-La localidad se arma desde IFT/LADA como `<ciudad o municipio>, <estado>, Mexico`. Los valores vagos de APIs externas, como país, región o etiquetas genéricas, no se geocodifican ni reemplazan una localidad concreta del IFT/LADA.
+La localidad se arma desde IFT/LADA como `<ciudad o municipio>, <estado>, Mexico`. Los valores vagos de APIs externas, como país, región o etiquetas genéricas, no se geocodifican ni reemplazan[...]
 
 Los proveedores se usan automáticamente cuando su key existe; si falta una key, esa fuente se omite sin detener el análisis. `--dummy-test` usa fixtures y no realiza llamadas reales a APIs.
 
@@ -211,7 +211,7 @@ Las API keys deben mantenerse en tu entorno local. No las subas a GitHub.
 
 ---
 
-## Seguridad
+## Seguridad 🔒
 
 No subas archivos como:
 
@@ -238,7 +238,7 @@ chmod 600 ~/.mx_osint_config.json
 
 ---
 
-## Advertencia
+## Advertencia ⚠️
 
 **MeXiCOSINT** está diseñado para investigación autorizada, autoauditoría y flujos educativos de OSINT.
 
@@ -248,7 +248,7 @@ La herramienta no garantiza identidad, ubicación exacta, propiedad ni atribuci�
 
 ---
 
-## Estado del proyecto
+## Estado del proyecto 🚧
 
 Este proyecto está en desarrollo activo.
 
@@ -261,6 +261,6 @@ Funciones planeadas:
 
 ---
 
-## Licencia
+## Licencia 📜
 
 Este proyecto se publica bajo la licencia incluida en este repositorio.
