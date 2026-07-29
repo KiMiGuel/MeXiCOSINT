@@ -367,7 +367,6 @@ LADA_MAP = {
     "618": "Durango, Durango",
     "415": "San Miguel de Allende, Guanajuato",
     "427": "Polotitlan, Guanajuato",
-    "443": "Morelia, Guanajuato",
     "445": "Moroleon, Guanajuato",
     "462": "Irapuato, Guanajuato",
     "464": "Salamanca, Guanajuato",
