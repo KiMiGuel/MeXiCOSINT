@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/Licencia-MIT-green.svg" alt="Licencia">
   <img src="https://img.shields.io/badge/OSINT-México-red.svg" alt="OSINT México">
-  <img src="https://img.shields.io/badge/Estado-Beta-orange.svg" alt="Estado Beta">
+  <img src="https://img.shields.io/badge/Estado-Estable-brightgreen.svg" alt="Estado Estable">
 </p>
 
 <h1 align="center">MeXiCOSINT 📞🔍</h1>
