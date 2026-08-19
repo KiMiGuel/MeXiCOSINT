@@ -38,7 +38,6 @@ Ejemplo:
   "numverify": "TU_NUMVERIFY_KEY",
   "opencage": "TU_OPENCAGE_KEY",
   "geoapify": "TU_GEOAPIFY_KEY",
-  "google_places": "TU_GOOGLE_PLACES_KEY",
   "ipqualityscore": "TU_IPQUALITYSCORE_KEY"
 }
 ```
@@ -71,7 +70,6 @@ Sin embargo, algunas funciones tendrán mejores resultados si se configuran serv
 | NumVerify   | Validación secundaria como evidencia de apoyo                |
 | OpenCage    | Geocodificación primaria opcional de localidad IFT/LADA      |
 | Geoapify    | Geocodificación fallback opcional de localidad IFT/LADA      |
-| Google Places | Posibles fichas públicas de negocio por número E.164       |
 | IPQualityScore | Validación, reputación y abuso telefónico como evidencia de apoyo |
 
 ---
@@ -192,7 +190,6 @@ Si quieres mostrar un ejemplo en la documentación, usa valores falsos:
   "numverify": "TU_NUMVERIFY_KEY",
   "opencage": "TU_OPENCAGE_KEY",
   "geoapify": "TU_GEOAPIFY_KEY",
-  "google_places": "TU_GOOGLE_PLACES_KEY",
   "ipqualityscore": "TU_IPQUALITYSCORE_KEY"
 }
 ```

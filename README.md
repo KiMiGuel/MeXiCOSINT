@@ -153,7 +153,6 @@ Gestión de API keys desde la CLI:
 ```bash
 mexicosint --set-key opencage TU_KEY
 mexicosint --set-key geoapify TU_KEY
-mexicosint --set-key google_places TU_KEY
 mexicosint --set-key ipqualityscore TU_KEY
 mexicosint --set-key abstract TU_KEY
 mexicosint --set-key numverify TU_KEY
@@ -198,7 +197,6 @@ Algunas funciones pueden depender de API keys externas.
 | NumVerify | Validación secundaria como evidencia de apoyo |
 | OpenCage | Geocodificación primaria opcional de localidad IFT/LADA |
 | Geoapify | Geocodificación fallback opcional de localidad IFT/LADA |
-| Google Places | Posibles fichas públicas de negocio por número E.164, sin atribución de suscriptor |
 | IPQualityScore | Validación, reputación y abuso telefónico como evidencia de apoyo |
 
 Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.

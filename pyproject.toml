@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mexicosint"
-version = "2.5.1"
+version = "2.5.2"
 description = "OSINT CLI for Mexican phone-number validation, IFT/PNN lookup, enrichment, and reports."
 readme = "README.md"
 requires-python = ">=3.8"

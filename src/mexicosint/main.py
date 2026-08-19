@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.5.1
+MeXicOSINT v2.5.2
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.5.2:
+  - Proveedor Google Places removido (friccion de billing/API key sin beneficio claro)
+  - Diagnostico de errores de Google Places corregido antes del removido (ya no aplica)
 
 Cambios v2.5.1:
   - Normalizador mexicano compartido
@@ -48,8 +52,6 @@ from mexicosint.evidence import SourceVote, decide_evidence, normalize_city
 from mexicosint.numbering import normalize_mx_number
 from mexicosint.modules.local_parser import parse_mx_number
 from mexicosint.providers.geoapify import GeoapifyProvider
-from mexicosint.providers.google_places import GooglePlacesProvider
-from mexicosint.providers.google_places import GooglePlacesError
 from mexicosint.providers.ipqualityscore import IPQualityScoreProvider
 from mexicosint.providers.opencage import OpenCageProvider
 
@@ -135,7 +137,6 @@ class ScanResult:
     geoapify_latitude: float = None
     geoapify_longitude: float = None
     geoapify_address: str = ""
-    google_places_data: dict = field(default_factory=dict)
     ipqualityscore_data: dict = field(default_factory=dict)
     provider_trace: list = field(default_factory=list)
     osint_links: dict = field(default_factory=dict)
@@ -197,12 +198,6 @@ SAMPLE_GEOAPIFY = {
     "latitude": None,
     "longitude": None,
     "note": "Numbering locality only; not live phone or subscriber location.",
-}
-
-SAMPLE_GOOGLE_PLACES = {
-    "source": "Google Places",
-    "match_status": "no_public_listing",
-    "note": "No public business listing found; not subscriber identification.",
 }
 
 SAMPLE_IPQUALITYSCORE = {
@@ -577,29 +572,6 @@ def _trace_provider(result: ScanResult, provider: str, status: str, normalized, 
     print(f"    [trace] {provider}: {status}{detail}")
 
 
-def _trace_google_places_error(result: ScanResult, normalized, diagnostic: dict) -> None:
-    safe = {
-        "provider": "Google Places",
-        "status": diagnostic.get("failure_kind", "error"),
-        "e164": normalized.e164,
-        "international_digits": normalized.international_digits,
-        "endpoint_type": diagnostic.get("endpoint_type", ""),
-        "http_status": diagnostic.get("http_status"),
-        "google_status": diagnostic.get("google_status", ""),
-        "google_code": diagnostic.get("google_code"),
-        "message": diagnostic.get("message", ""),
-    }
-    result.provider_trace.append(safe)
-    print(
-        "    [trace] Google Places: "
-        f"{safe['status']} input={normalized.e164} "
-        f"endpoint={safe['endpoint_type']} "
-        f"http={safe['http_status']} "
-        f"google_status={safe['google_status']} "
-        f"message={safe['message']}"
-    )
-
-
 def _lookup_cached_geocoder(provider, locality: str):
     lookup = provider.lookup
     before = lookup.cache_info() if hasattr(lookup, "cache_info") else None
@@ -963,14 +935,6 @@ def rich_print_api_results(result: ScanResult):
             result.ipqualityscore_data.get("carrier") or "—",
             result.ipqualityscore_data.get("line_type") or "—",
         )
-    if result.google_places_data:
-        table.add_row(
-            "Google Places",
-            result.google_places_data.get("match_status", "N/A"),
-            result.google_places_data.get("public_address") or "—",
-            result.google_places_data.get("name") or "—",
-            "public listing",
-        )
     console.print()
     console.print(table)
 
@@ -993,10 +957,6 @@ def plain_print_api_results(result: ScanResult):
               f"Activo: {result.ipqualityscore_data.get('active', 'N/A')}, "
               f"Riesgo: {result.ipqualityscore_data.get('risk_score', 'N/A')}, "
               f"Abuso reciente: {result.ipqualityscore_data.get('abuse_recent', 'N/A')}")
-    if result.google_places_data:
-        print(f"    [Google Places] {result.google_places_data.get('match_status', 'N/A')}: "
-              f"{result.google_places_data.get('name', '—') or '—'}")
-        print("      Nota: posible ficha publica de negocio, no identificacion del suscriptor.")
 
 
 def rich_print_consensus(result: ScanResult):
@@ -1214,26 +1174,6 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
             _trace_provider(result, "NumVerify", "error", normalized, note=type(e).__name__)
     else:
         _trace_provider(result, "NumVerify", "skipped", normalized)
-
-    if "google_places" in active:
-        try:
-            if DUMMY_MODE:
-                _trace_provider(result, "Google Places", "fixture", normalized)
-                result.google_places_data = copy.deepcopy(SAMPLE_GOOGLE_PLACES)
-            else:
-                _trace_provider(result, "Google Places", "live_request", normalized)
-                places = GooglePlacesProvider(_get_api_key(config, "google_places")).lookup(normalized)
-                if places:
-                    result.google_places_data = asdict(places)
-                    _trace_provider(result, "Google Places", places.match_status, normalized)
-        except GooglePlacesError as e:
-            result.errors.append(f"google_places: {e}")
-            _trace_google_places_error(result, normalized, e.diagnostic)
-        except Exception as e:
-            result.errors.append(f"google_places: {e}")
-            _trace_provider(result, "Google Places", "error", normalized, note=type(e).__name__)
-    else:
-        _trace_provider(result, "Google Places", "skipped", normalized)
 
     if "ipqualityscore" in active:
         try:
