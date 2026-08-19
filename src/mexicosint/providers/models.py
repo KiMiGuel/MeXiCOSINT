@@ -22,20 +22,6 @@ class LocalityEvidence:
 
 
 @dataclass(frozen=True)
-class BusinessListingEvidence:
-    source: str
-    match_status: str
-    name: str = ""
-    category: str = ""
-    public_address: str = ""
-    website: str = ""
-    maps_url: str = ""
-    place_id: str = ""
-    note: str = ""
-    raw: dict = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
 class ReputationEvidence:
     source: str
     valid: bool | None = None

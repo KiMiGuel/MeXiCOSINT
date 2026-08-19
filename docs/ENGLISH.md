@@ -1,6 +1,6 @@
 # MeXiCOSINT English Documentation
 
-**MeXiCOSINT v2.5.1** is a Python OSINT tool focused on Mexican phone-number analysis, validation, enrichment, and reporting.
+**MeXiCOSINT v2.5.2** is a Python OSINT tool focused on Mexican phone-number analysis, validation, enrichment, and reporting.
 
 It is phone-only in v2.5.1. The old IP workflow was removed: no `--ip`, no Shodan, no IPInfo, and no IP2Location.
 
@@ -16,7 +16,7 @@ It is phone-only in v2.5.1. The old IP workflow was removed: no `--ip`, no Shoda
 * Official IFT/PNN block lookup, offline.
 * LADA reference data as fallback or supporting evidence.
 * Canonical locality from IFT/LADA.
-* Optional enrichment from AbstractAPI, NumVerify, OpenCage, Geoapify, Google Places, and IPQualityScore.
+* Optional enrichment from AbstractAPI, NumVerify, OpenCage, Geoapify, and IPQualityScore.
 * OSINT links using exact phone-number variants.
 * JSON reports under `output/reports/`.
 * CLI API-key management with `--set-key`, `--list-keys`, and `--config-path`.
@@ -129,7 +129,6 @@ Current API-key commands:
 ```bash
 mexicosint --set-key opencage TU_KEY
 mexicosint --set-key geoapify TU_KEY
-mexicosint --set-key google_places TU_KEY
 mexicosint --set-key ipqualityscore TU_KEY
 mexicosint --set-key abstract TU_KEY
 mexicosint --set-key numverify TU_KEY
@@ -143,7 +142,6 @@ abstract_phone_intelligence
 numverify
 opencage
 geoapify
-google_places
 ipqualityscore
 ```
 
@@ -173,7 +171,6 @@ Example config with fake placeholders:
   "numverify": "TU_NUMVERIFY_KEY",
   "opencage": "TU_OPENCAGE_KEY",
   "geoapify": "TU_GEOAPIFY_KEY",
-  "google_places": "TU_GOOGLE_PLACES_KEY",
   "ipqualityscore": "TU_IPQUALITYSCORE_KEY"
 }
 ```
@@ -196,19 +193,10 @@ Do not commit API keys, `.env`, config files, reports with sensitive data, or cr
 | NumVerify | Secondary validation as supporting/conflict evidence |
 | OpenCage | Primary optional geocoder for canonical IFT/LADA locality |
 | Geoapify | Optional geocoder fallback for canonical IFT/LADA locality |
-| Google Places | Public business-listing search by normalized E.164 phone number |
 | IPQualityScore | Phone validation, reputation, abuse, activity, VoIP, carrier, and line-type evidence |
 | Nominatim | Final geocoder fallback when keyed geocoders are unavailable or return no result |
 
 AbstractAPI, NumVerify, and IPQualityScore locality fields do not override concrete IFT/LADA locality.
-
-Google Places searches the normalized E.164 phone number directly, using a spaced search form such as:
-
-```text
-+52 664 483 7308
-```
-
-IFT/LADA may be used only to validate or region-bias a public business candidate. A Google Places match is not subscriber identity.
 
 ---
 
@@ -347,6 +335,6 @@ mexicosint --dummy-test 6634647308
 
 ## Project Status
 
-MeXiCOSINT v2.5.1 is focused on Mexican phone-number OSINT. It does not perform IP enrichment.
+MeXiCOSINT v2.5.2 is focused on Mexican phone-number OSINT. It does not perform IP enrichment.
 
 Use it only for authorized research, self-auditing, and educational workflows.

@@ -14,7 +14,6 @@ SAMPLE_CONFIG = {
     "numverify": "",
     "opencage": "",
     "geoapify": "",
-    "google_places": "",
     "ipqualityscore": "",
 }
 

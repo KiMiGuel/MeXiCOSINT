@@ -133,7 +133,7 @@
 
 <nav>
   <div class="wrap">
-    <div class="logo">MeXi<span>COSINT</span><span class="badge-ver">v2.5.1</span></div>
+    <div class="logo">MeXi<span>COSINT</span><span class="badge-ver">v2.5.2</span></div>
     <div class="links">
       <a href="#que-hace">Qué hace</a>
       <a href="#ift">Base IFT</a>
@@ -196,7 +196,7 @@ mexicosint 5512345678</pre>
       <div class="card">
         <div class="ico">🗳️</div>
         <h3>Estados de evidencia</h3>
-        <p>IFT/PNN y LADA definen la localidad canónica; AbstractAPI, NumVerify, Google Places e IPQualityScore agregan apoyo o conflicto — sin falsas certezas.</p>
+        <p>IFT/PNN y LADA definen la localidad canónica; AbstractAPI, NumVerify e IPQualityScore agregan apoyo o conflicto — sin falsas certezas.</p>
       </div>
       <div class="card">
         <div class="ico">🚨</div>
@@ -373,31 +373,6 @@ mexicosint --set-key numverify TU_KEY</div>
       </ol>
       <div class="cmd">mexicosint --set-key geoapify TU_API_KEY</div>
       <a class="signup" href="https://myprojects.geoapify.com/register">Crear cuenta en Geoapify</a>
-    </div>
-
-    <div class="api">
-      <div class="api-head">
-        <h3>Google Places — Fichas públicas de negocio</h3>
-        <span class="pill">NEGOCIOS</span>
-        <span class="pill">OPCIONAL</span>
-      </div>
-      <p><b>Qué hace:</b> busca posibles fichas públicas asociadas al número E.164 normalizado y normaliza nombre, categoría, dirección pública, sitio web, Maps URL y place ID.</p>
-      <p><b>Importante:</b> una posible ficha pública no identifica al suscriptor.</p>
-      <p><b>Guía de registro</b>:</p>
-      <ol>
-        <li>Abre Google Cloud Console.</li>
-        <li>Inicia sesión con una cuenta de Google.</li>
-        <li>Crea o selecciona un proyecto.</li>
-        <li>Activa la facturación para ese proyecto.</li>
-        <li>Abre <code>"APIs & Services"</code>.</li>
-        <li>Habilita <code>"Places API (New)"</code>.</li>
-        <li>Abre <code>"Credentials"</code>.</li>
-        <li>Crea una API key.</li>
-        <li>Restringe la key a Places API.</li>
-        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
-      </ol>
-      <div class="cmd">mexicosint --set-key google_places TU_API_KEY</div>
-      <a class="signup" href="https://console.cloud.google.com/">Abrir Google Cloud Console</a>
     </div>
 
     <div class="api">

@@ -113,13 +113,12 @@ Guardar una key:
 ```bash
 mexicosint --set-key opencage TU_KEY
 mexicosint --set-key geoapify TU_KEY
-mexicosint --set-key google_places TU_KEY
 mexicosint --set-key ipqualityscore TU_KEY
 mexicosint --set-key abstract TU_KEY
 mexicosint --set-key numverify TU_KEY
 ```
 
-Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `opencage`, `geoapify`, `google_places`, `ipqualityscore`.
+Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `opencage`, `geoapify`, `ipqualityscore`.
 
 Ver el estado de las keys (enmascaradas):
 
@@ -186,7 +185,6 @@ Dependiendo de la configuración y API keys disponibles, un escaneo puede mostra
 * Localidad canónica IFT/LADA con atribución clara de fuente
 * Enlaces de investigación OSINT
 * OpenCage, Geoapify o Nominatim para geocodificar la localidad IFT/LADA + mapa HTML
-* Google Places para posibles fichas públicas de negocio buscadas por número E.164
 * IPQualityScore para reputación y abuso telefónico
 * Reporte JSON exportado en `output/reports/`
 
@@ -200,7 +198,7 @@ MeXiCOSINT funciona parcialmente sin keys:
 
 ```text
 Sin API keys: validación, parsing local, base IFT completa, LADA, enlaces OSINT
-Con API keys: enriquecimiento adicional, geocodificación, fichas públicas de negocio y reputación telefónica
+Con API keys: enriquecimiento adicional, geocodificación y reputación telefónica
 ```
 
 La base IFT funciona siempre, con o sin keys.
@@ -220,8 +218,6 @@ La localidad mexicana se resuelve en este orden:
 AbstractAPI, NumVerify e IPQualityScore pueden aportar evidencia o conflicto, pero no reemplazan una localidad concreta de IFT/LADA. Valores vagos como `Mexico`, `NorthWest`, regiones genéricas, tipo de línea o país sin ciudad no se envían a geocodificadores.
 
 OpenCage se usa como geocodificador primario si tiene key. Geoapify se usa como fallback con key. Nominatim queda como fallback final sin key.
-
-Google Places busca el número E.164 normalizado directamente, con formato de búsqueda como `+52 664 483 7308`. IFT/LADA solo ayuda a validar o sesgar regionalmente una ficha pública candidata.
 
 ---
 

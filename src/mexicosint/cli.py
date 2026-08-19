@@ -17,7 +17,7 @@ EPILOG = """ejemplos:
 
 servicios validos para --set-key:
   abstract (alias de abstract_phone_intelligence), numverify,
-  opencage, geoapify, google_places, ipqualityscore
+  opencage, geoapify, ipqualityscore
 """
 
 

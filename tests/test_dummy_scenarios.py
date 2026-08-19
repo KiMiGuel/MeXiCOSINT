@@ -1,7 +1,6 @@
 import json
 
 import mexicosint.main as app
-from mexicosint.providers.google_places import GooglePlacesError
 
 
 def test_dummy_scan_writes_evidence_state_to_report(monkeypatch, tmp_path):
@@ -15,7 +14,6 @@ def test_dummy_scan_writes_evidence_state_to_report(monkeypatch, tmp_path):
     assert result.evidence_state == "strong agreement"
     assert report["evidence_state"] == "strong agreement"
     assert report["geoapify_data"]["source"] == "Geoapify"
-    assert report["google_places_data"]["source"] == "Google Places"
     assert report["ipqualityscore_data"]["source"] == "IPQualityScore"
 
 
@@ -64,15 +62,7 @@ def test_dummy_scan_records_provider_errors(monkeypatch, tmp_path):
 
 
 def test_live_scans_use_current_normalized_number_for_phone_providers(monkeypatch, tmp_path):
-    calls = {"abstract": [], "numverify": [], "ipqualityscore": [], "google_places": []}
-
-    class FakePlacesProvider:
-        def __init__(self, api_key):
-            pass
-
-        def lookup(self, number):
-            calls["google_places"].append(number.e164)
-            return None
+    calls = {"abstract": [], "numverify": [], "ipqualityscore": []}
 
     class FakeIpqsProvider:
         def __init__(self, api_key):
@@ -88,14 +78,12 @@ def test_live_scans_use_current_normalized_number_for_phone_providers(monkeypatc
     monkeypatch.setattr(app, "geocode_nominatim", lambda city: (None, None, ""))
     monkeypatch.setattr(app, "abstract_phone_intelligence_lookup", lambda e164, api_key: calls["abstract"].append(e164) or {})
     monkeypatch.setattr(app, "numverify_lookup", lambda e164, api_key: calls["numverify"].append(e164) or {})
-    monkeypatch.setattr(app, "GooglePlacesProvider", FakePlacesProvider)
     monkeypatch.setattr(app, "IPQualityScoreProvider", FakeIpqsProvider)
 
     config = {
         "abstract_phone_intelligence": "present_abs",
         "numverify": "present_num",
         "ipqualityscore": "present_ipq",
-        "google_places": "present_google",
     }
     active = list(config)
 
@@ -104,44 +92,9 @@ def test_live_scans_use_current_normalized_number_for_phone_providers(monkeypatc
 
     assert calls["abstract"] == ["+525512345678", "+526634647308"]
     assert calls["numverify"] == ["+525512345678", "+526634647308"]
-    assert calls["google_places"] == ["+525512345678", "+526634647308"]
     assert calls["ipqualityscore"] == ["525512345678", "526634647308"]
     assert first.scan_id != second.scan_id
     assert first.provider_trace != second.provider_trace
-
-
-def test_google_places_diagnostic_is_added_to_provider_trace(monkeypatch, tmp_path):
-    class FakePlacesProvider:
-        def __init__(self, api_key):
-            pass
-
-        def lookup(self, number):
-            raise GooglePlacesError(
-                {
-                    "provider": "Google Places",
-                    "endpoint_type": "new",
-                    "failure_kind": "billing/auth/config failure",
-                    "http_status": 403,
-                    "google_status": "PERMISSION_DENIED",
-                    "google_code": 403,
-                    "message": "API key invalid",
-                }
-            )
-
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
-    monkeypatch.setattr(app, "GooglePlacesProvider", FakePlacesProvider)
-    monkeypatch.setattr(app, "geocode_nominatim", lambda city: (None, None, ""))
-
-    result = app.run_phone_scan("6634647308", {"google_places": "present_google"}, ["google_places"])
-
-    trace = [entry for entry in result.provider_trace if entry["provider"] == "Google Places"][-1]
-    assert trace["status"] == "billing/auth/config failure"
-    assert trace["endpoint_type"] == "new"
-    assert trace["http_status"] == 403
-    assert trace["google_status"] == "PERMISSION_DENIED"
-    assert trace["message"] == "API key invalid"
 
 
 def test_main_resets_dummy_mode_between_invocations(monkeypatch):
