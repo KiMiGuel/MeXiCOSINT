@@ -43,6 +43,7 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - Series no geográficas 200/300/500/800/900 con alerta de números premium (900)
 - Gestión de API keys desde la CLI (`--set-key`, `--list-keys`, `--config-path`)
 - Configuración local de API keys
+- **Rendimiento concurrente (v2.5.3)**: llamadas a APIs en paralelo (asyncio + aiohttp), pooling de conexiones HTTPS y memoización de normalización y geocodificación
 - Soporte para reportes o salidas generadas según la versión
 - Modo telefónico únicamente: sin proveedores IP ni escaneo IP
 
@@ -57,23 +58,32 @@ MeXiCOSINT/
 ├── docs/
 │   ├── INSTALL.md
 │   ├── USAGE.md
-│   └── CONFIG.md
+│   ├── CONFIG.md
+│   ├── ENGLISH.md
+│   └── index.html
 ├── src/
 │   └── mexicosint/
 │       ├── __init__.py
 │       ├── __main__.py
 │       ├── cli.py
+│       ├── config.py
+│       ├── evidence.py
 │       ├── main.py
+│       ├── numbering.py
 │       ├── data/
 │       ├── modules/
 │       │   ├── ift_blocks.py
 │       │   ├── ift_sns.py
 │       │   ├── local_parser.py
 │       │   └── quienhabla.py
+│       ├── providers/
+│       │   ├── geoapify.py
+│       │   ├── ipqualityscore.py
+│       │   ├── models.py
+│       │   └── opencage.py
 │       ├── services/
 │       │   └── scanner.py
 │       └── utils/
-│           └── validation.py
 ├── tools/
 │   └── update_ift_blocks.py
 ├── pyproject.toml
