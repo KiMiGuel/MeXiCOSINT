@@ -217,7 +217,20 @@ La localidad mexicana se resuelve en este orden:
 
 AbstractAPI, NumVerify e IPQualityScore pueden aportar evidencia o conflicto, pero no reemplazan una localidad concreta de IFT/LADA. Valores vagos como `Mexico`, `NorthWest`, regiones genéricas, tipo de línea o país sin ciudad no se envían a geocodificadores.
 
-OpenCage se usa como geocodificador primario si tiene key. Geoapify se usa como fallback con key. Nominatim queda como fallback final sin key.
+OpenCage y Geoapify se consultan **en paralelo** (con key); OpenCage sigue siendo el resultado primario. Nominatim queda como fallback final sin key.
+
+---
+
+## Rendimiento (v2.5.3)
+
+Desde la versión 2.5.3 las llamadas de red son concurrentes:
+
+* Las APIs telefónicas (AbstractAPI, NumVerify, IPQualityScore) se consultan **en paralelo** con asyncio + aiohttp.
+* OpenCage y Geoapify geocodifican en paralelo; Nominatim sigue como respaldo final.
+* Las conexiones HTTPS se reutilizan (pooling de sesiones).
+* La normalización de localidades y la geocodificación Nominatim usan caché (menos trabajo repetido entre escaneos).
+
+No requiere configuración adicional: instala o actualiza normalmente (`pipx upgrade mexicosint`).
 
 ---
 

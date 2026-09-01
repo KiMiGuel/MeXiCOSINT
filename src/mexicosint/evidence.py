@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 
 @dataclass
@@ -48,6 +49,7 @@ CITY_ALIASES = {
 }
 
 
+@lru_cache(maxsize=1024)
 def normalize_city(city: str) -> str:
     if not city:
         return ""
