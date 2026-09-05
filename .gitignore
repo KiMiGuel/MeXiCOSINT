@@ -49,3 +49,7 @@ results/
 
 # IFT raw PNN downloads (reproducible via tools/update_ift_blocks.py)
 src/mexicosint/data/raw_pnn/
+
+# Compiled IFT SQLite index — rebuilt from pnn_Publico_*.csv by
+# ift_sns.py's init_db() on first query, so shipping it is redundant
+src/mexicosint/data/ift_pnn.db
