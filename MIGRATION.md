@@ -48,7 +48,7 @@ Usa imports absolutos del paquete:
 
 ```python
 from mexicosint.modules.local_parser import parse_mx_number
-from mexicosint.modules.ift_sns import consultar
+from mexicosint.modules.ift_blocks import lookup_block
 from mexicosint.modules.quienhabla import consultar as consultar_quienhabla
 from mexicosint.services.scanner import run_phone_scan
 ```

@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.5.3
+MeXicOSINT v2.5.4
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.5.4:
+  - Base IFT/PNN actualizada al corte del 05/09/2026 (178,172 bloques geograficos,
+    1,565 bloques no geograficos)
+  - Removido modulo muerto ift_sns.py (SQLite legacy, reemplazado por ift_blocks.py)
 
 Cambios v2.5.3:
   - Llamadas a APIs concurrentes con asyncio + aiohttp (fase telefonica en paralelo)
@@ -308,7 +313,7 @@ def print_banner():
     print()
     print(GREEN + "╔══════════════════════════════════════════════════════════════════╗" + RESET)
     print(GREEN + "║                                                                  ║" + RESET)
-    print(WHITE + "║                    MeXicOSINT v2.5.1                             ║" + RESET)
+    print(WHITE + "║                    MeXicOSINT v2.5.4                             ║" + RESET)
     print(RED + "║              OSINT para numeros Mexicanos                        ║" + RESET)
     print(RED + "║                    Autor: KiMiGuEL                               ║" + RESET)
     print(RED + "╚══════════════════════════════════════════════════════════════════╝" + RESET)

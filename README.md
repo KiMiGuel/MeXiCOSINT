@@ -73,7 +73,6 @@ MeXiCOSINT/
 │       ├── data/
 │       ├── modules/
 │       │   ├── ift_blocks.py
-│       │   ├── ift_sns.py
 │       │   ├── local_parser.py
 │       │   └── quienhabla.py
 │       ├── providers/
