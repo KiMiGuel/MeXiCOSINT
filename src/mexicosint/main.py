@@ -65,7 +65,16 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 
 from mexicosint import config as config_store
-from mexicosint.evidence import SourceVote, decide_evidence, normalize_city
+from mexicosint.core.models import (
+    ApiResponse,
+    ConsensusResult,
+    GeocodingResult,
+    IftBlockInfo,
+    PhoneInfo,
+    ReputationResult,
+)
+from mexicosint.data.lada import get_locality_str
+from mexicosint.evidence import EvidenceState, SourceVote, decide_evidence, normalize_city
 from mexicosint.numbering import normalize_mx_number
 from mexicosint.modules.local_parser import parse_mx_number
 from mexicosint.providers.geoapify import GeoapifyProvider
@@ -104,11 +113,40 @@ _SESSION = requests.Session()
 SAMPLE_CONFIG = config_store.SAMPLE_CONFIG
 
 DUMMY_MODE = False
-SMALL_BANNER = False
+
+
+@dataclass
+class ScanSettings:
+    """Config entry point for new code paths.
+
+    DUMMY_MODE stays the source of truth that the rest of main.py reads,
+    since the existing test suite monkeypatches that global directly.
+    Constructing ScanSettings syncs into it so both call paths (direct
+    global access, and this object) agree.
+    """
+    dummy_mode: bool = False
+
+    def __post_init__(self) -> None:
+        global DUMMY_MODE
+        DUMMY_MODE = self.dummy_mode
 
 
 def _sha256(data: str) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
+
+
+def _sanitize_error(text: str, api_key: str | None) -> str:
+    """Redact an API key from an error message before it's stored/exported.
+
+    HTTP error exceptions (raise_for_status, aiohttp) include the full
+    request URL in their string form, and every provider here sends its
+    key as a query param or (IPQualityScore) embedded in the URL path.
+    Without this, a failed API call leaks the live key into the exported
+    JSON report.
+    """
+    if not api_key:
+        return text
+    return text.replace(api_key, "***REDACTED***")
 
 
 def _now_utc() -> str:
@@ -149,7 +187,7 @@ class ScanResult:
     consensus_city: str = ""
     consensus_confidence: float = 0.0
     consensus_sources: list = field(default_factory=list)
-    evidence_state: str = "no usable locality"
+    evidence_state: EvidenceState = EvidenceState.NO_USABLE_LOCALITY
     all_votes: list = field(default_factory=list)
     latitude: float = None
     longitude: float = None
@@ -171,6 +209,86 @@ class ScanResult:
     errors: list = field(default_factory=list)
     # FIX #3: Use default_factory instead of direct function call
     scan_timestamp: str = field(default_factory=_now_utc)
+
+    @property
+    def phone(self) -> PhoneInfo:
+        return PhoneInfo(
+            raw_input=self.raw_input,
+            detected_format=self.detected_format,
+            international_digits=self.international_digits,
+            is_possible=self.is_possible,
+            is_mexican=self.is_mexican,
+            e164=self.e164,
+            valid=self.valid,
+            country_code=self.country_code,
+            national_number=self.national_number,
+            region_phonenumbers=self.region_phonenumbers,
+            lada_region=self.lada_region,
+        )
+
+    @property
+    def ift_block(self) -> IftBlockInfo:
+        return IftBlockInfo(
+            carrier=self.ift_carrier,
+            modality=self.ift_modality,
+            zona=self.ift_zona,
+            fecha_asignacion=self.ift_fecha_asignacion,
+            service_type=self.ift_service_type,
+        )
+
+    @property
+    def abstract(self) -> ApiResponse:
+        return ApiResponse(
+            provider="AbstractAPI",
+            raw=self.abstract_data,
+            location=self.abstract_location,
+            carrier=self.abstract_carrier,
+            line_type=self.abstract_line_type,
+        )
+
+    @property
+    def numverify(self) -> ApiResponse:
+        return ApiResponse(
+            provider="NumVerify",
+            raw=self.numverify_data,
+            location=self.numverify_location,
+            carrier=self.numverify_carrier,
+            line_type=self.numverify_line_type,
+        )
+
+    @property
+    def opencage(self) -> GeocodingResult:
+        return GeocodingResult(
+            provider="OpenCage",
+            raw=self.opencage_data,
+            latitude=self.opencage_latitude,
+            longitude=self.opencage_longitude,
+            address=self.opencage_address,
+        )
+
+    @property
+    def geoapify(self) -> GeocodingResult:
+        return GeocodingResult(
+            provider="Geoapify",
+            raw=self.geoapify_data,
+            latitude=self.geoapify_latitude,
+            longitude=self.geoapify_longitude,
+            address=self.geoapify_address,
+        )
+
+    @property
+    def ipqualityscore(self) -> ReputationResult:
+        return ReputationResult(provider="IPQualityScore", raw=self.ipqualityscore_data)
+
+    @property
+    def consensus(self) -> ConsensusResult:
+        return ConsensusResult(
+            state=self.evidence_state,
+            city=self.consensus_city,
+            confidence=self.consensus_confidence,
+            sources=self.consensus_sources,
+            all_votes=self.all_votes,
+        )
 
     def to_dict(self):
         return asdict(self)
@@ -267,24 +385,7 @@ def print_banner():
     except Exception:
         term_width = 80
 
-    # Default to small font; Bloody font is too wide and breaks the banner
-    if SMALL_BANNER:
-        fonts_to_try = [("small", "small")]
-    else:
-        fonts_to_try = [("small", "small"), ("standard", "standard")]
-
-    chosen_lines = None
-    chosen_name = None
-    for name, font_arg in fonts_to_try:
-        lines = _render_figlet("MeXicOSINT", font_arg)
-        if not lines:
-            continue
-        width = max(len(line) for line in lines)
-        if not SMALL_BANNER and width > term_width - 8:
-            continue
-        chosen_lines = lines
-        chosen_name = name
-        break
+    chosen_lines = _render_figlet("MeXicOSINT", "small")
 
     if chosen_lines:
         lines = chosen_lines
@@ -310,13 +411,14 @@ def print_banner():
         print()
         return
 
+    # figlet unavailable: plain text fallback, sized to the real terminal width
+    box_width = max(min(68, term_width - 2), 20)
     print()
-    print(GREEN + "╔══════════════════════════════════════════════════════════════════╗" + RESET)
-    print(GREEN + "║                                                                  ║" + RESET)
-    print(WHITE + "║                    MeXicOSINT v2.5.4                             ║" + RESET)
-    print(RED + "║              OSINT para numeros Mexicanos                        ║" + RESET)
-    print(RED + "║                    Autor: KiMiGuEL                               ║" + RESET)
-    print(RED + "╚══════════════════════════════════════════════════════════════════╝" + RESET)
+    print(GREEN + "╔" + "═" * box_width + "╗" + RESET)
+    print(WHITE + "║" + "MeXicOSINT v2.5.4".center(box_width) + "║" + RESET)
+    print(RED + "║" + "OSINT para numeros Mexicanos".center(box_width) + "║" + RESET)
+    print(RED + "║" + "Autor: KiMiGuEL".center(box_width) + "║" + RESET)
+    print(RED + "╚" + "═" * box_width + "╝" + RESET)
     print()
 
 
@@ -354,106 +456,6 @@ def list_keys_cli() -> int:
 
 # --- MEXICO LADA DATABASE (FIX #4: Official IFT data) ---
 # Source: Instituto Federal de Telecomunicaciones (IFT) - Plan Nacional de Numeracion
-# https://www.ift.org.mx/plan-nacional-de-numeracion
-# Mobile numbering: 1 + 10 digits. LADA prefixes for geographic areas.
-# NOTE: Due to number portability (since 2008), LADA is only a historical reference.
-LADA_MAP = {
-    "55": "Ciudad de Mexico",
-    "81": "Monterrey, Nuevo Leon",
-    "33": "Guadalajara, Jalisco",
-    "646": "Ensenada, Baja California",
-    "661": "Tecate, Baja California",
-    "664": "Tijuana, Baja California",
-    "665": "Tijuana, Baja California",
-    "686": "Mexicali, Baja California",
-    "612": "La Paz, Baja California Sur",
-    "624": "Los Cabos, Baja California Sur",
-    "981": "Campeche, Campeche",
-    "938": "Ciudad del Carmen, Campeche",
-    "614": "Chihuahua, Chihuahua",
-    "625": "Ciudad Cuauhtemoc, Chihuahua",
-    "639": "Ciudad Delicias, Chihuahua",
-    "656": "Ciudad Juarez, Chihuahua",
-    "627": "Parral, Chihuahua",
-    "844": "Saltillo, Coahuila",
-    "861": "Sabinas, Coahuila",
-    "866": "Monclova, Coahuila",
-    "871": "Torreon, Coahuila",
-    "878": "Piedras Negras, Coahuila",
-    "312": "Colima, Colima",
-    "314": "Manzanillo, Colima",
-    "961": "Tuxtla Gutierrez, Chiapas",
-    "962": "Tapachula, Chiapas",
-    "618": "Durango, Durango",
-    "415": "San Miguel de Allende, Guanajuato",
-    "427": "Polotitlan, Guanajuato",
-    "445": "Moroleon, Guanajuato",
-    "462": "Irapuato, Guanajuato",
-    "464": "Salamanca, Guanajuato",
-    "473": "Guanajuato, Guanajuato",
-    "477": "Leon, Guanajuato",
-    "733": "Mayanalan, Guerrero",
-    "747": "Chilpancingo, Guerrero",
-    "755": "Zihuatanejo, Guerrero",
-    "771": "Pachuca, Hidalgo",
-    "773": "Tepeji del Rio, Hidalgo",
-    "775": "Singuilucan, Hidalgo",
-    "341": "Ciudad Guzman, Jalisco",
-    "378": "Tepatitlan, Jalisco",
-    "392": "Ocotlan, Jalisco",
-    "474": "Lagos de Moreno, Jalisco",
-    "594": "San Marcos Nepantla, Estado de Mexico",
-    "595": "Texcoco, Estado de Mexico",
-    "722": "Toluca, Estado de Mexico",
-    "728": "Lerma, Estado de Mexico",
-    "352": "La Piedad, Michoacan",
-    "353": "Sahuayo, Michoacan",
-    "351": "Zamora, Michoacan",
-    "443": "Morelia, Michoacan",
-    "452": "Uruapan, Michoacan",
-    "734": "Zacatepec, Morelos",
-    "735": "Cuautla, Morelos",
-    "777": "Cuernavaca, Morelos",
-    "311": "Tepic, Nayarit",
-    "951": "Oaxaca, Oaxaca",
-    "971": "Ixtepec, Oaxaca",
-    "222": "Puebla, Puebla",
-    "238": "Tehuacan, Puebla",
-    "248": "San Martin Texmelucan, Puebla",
-    "442": "Queretaro, Queretaro",
-    "983": "Chetumal, Quintana Roo",
-    "998": "Cancun, Quintana Roo",
-    "444": "San Luis Potosi, San Luis Potosi",
-    "481": "Ciudad Valles, San Luis Potosi",
-    "667": "Culiacan, Sinaloa",
-    "668": "Los Mochis, Sinaloa",
-    "669": "Mazatlan, Sinaloa",
-    "622": "Guaymas, Sonora",
-    "631": "Nogales, Sonora",
-    "642": "Navojoa, Sonora",
-    "644": "Ciudad Obregon, Sonora",
-    "653": "San Luis Rio Colorado, Sonora",
-    "662": "Hermosillo, Sonora",
-    "993": "Villahermosa, Tabasco",
-    "831": "Ciudad Mante, Tamaulipas",
-    "833": "Tampico, Tamaulipas",
-    "834": "Ciudad Victoria, Tamaulipas",
-    "867": "Nuevo Laredo, Tamaulipas",
-    "868": "Matamoros, Tamaulipas",
-    "899": "Reynosa, Tamaulipas",
-    "241": "Apizaco, Tlaxcala",
-    "246": "Tlaxcala, Tlaxcala",
-    "228": "Jalapa, Veracruz",
-    "229": "Veracruz, Veracruz",
-    "271": "Cordoba, Veracruz",
-    "272": "Orizaba, Veracruz",
-    "783": "Tuxpan, Veracruz",
-    "921": "Coatzacoalcos, Veracruz",
-    "922": "Chinameca, Veracruz",
-    "999": "Merida, Yucatan",
-    "492": "Zacatecas, Zacatecas",
-    "493": "Fresnillo, Zacatecas",
-}
 
 def detect_lada_region(national_number: str) -> str:
     nat = national_number.replace(" ", "")
@@ -465,7 +467,7 @@ def detect_lada_region(national_number: str) -> str:
         nat = nat[1:]
     lada3 = nat[:3]
     lada2 = nat[:2]
-    return LADA_MAP.get(lada3) or LADA_MAP.get(lada2) or ""
+    return get_locality_str(lada3) or get_locality_str(lada2) or ""
 
 
 # --- VALIDATION ---
@@ -906,13 +908,13 @@ def run_consensus(result: ScanResult):
         agreeing = [vote for vote in supporting if _locality_compare_key(vote.city) == canonical_key]
         conflicting = [vote for vote in supporting if _locality_compare_key(vote.city) != canonical_key]
         if agreeing and not conflicting:
-            result.evidence_state = "strong agreement"
+            result.evidence_state = EvidenceState.STRONG_AGREEMENT
         elif agreeing and conflicting:
-            result.evidence_state = "partial agreement"
+            result.evidence_state = EvidenceState.PARTIAL_AGREEMENT
         elif conflicting:
-            result.evidence_state = "conflicting sources"
+            result.evidence_state = EvidenceState.CONFLICTING_SOURCES
         else:
-            result.evidence_state = "single-source result"
+            result.evidence_state = EvidenceState.SINGLE_SOURCE
     else:
         result.consensus_city = decision.city
         result.consensus_confidence = 0.0
@@ -1256,7 +1258,8 @@ async def _abstract_job(result, normalized, e164, config, active, session, api_r
         )
     except Exception as e:
         api_results["abstract_intel"] = None
-        result.errors.append(f"abstract_intel: {e}")
+        key = _get_api_key(config, "abstract_phone_intelligence")
+        result.errors.append(_sanitize_error(f"abstract_intel: {e}", key))
         _trace_provider(result, "AbstractAPI", "error", normalized, note=type(e).__name__)
 
 
@@ -1271,7 +1274,8 @@ async def _numverify_job(result, normalized, e164, config, active, session, api_
         )
     except Exception as e:
         api_results["numverify"] = None
-        result.errors.append(f"numverify: {e}")
+        key = _get_api_key(config, "numverify")
+        result.errors.append(_sanitize_error(f"numverify: {e}", key))
         _trace_provider(result, "NumVerify", "error", normalized, note=type(e).__name__)
 
 
@@ -1279,9 +1283,10 @@ async def _ipqs_job(result, normalized, config, active, session):
     if "ipqualityscore" not in active:
         _trace_provider(result, "IPQualityScore", "skipped", normalized)
         return
+    key = _get_api_key(config, "ipqualityscore")
     try:
         _trace_provider(result, "IPQualityScore", "live_request", normalized)
-        provider = IPQualityScoreProvider(_get_api_key(config, "ipqualityscore"))
+        provider = IPQualityScoreProvider(key)
         alookup = getattr(provider, "alookup", None)
         if alookup is not None:
             reputation = await alookup(session, normalized)
@@ -1290,14 +1295,15 @@ async def _ipqs_job(result, normalized, config, active, session):
         if reputation:
             result.ipqualityscore_data = asdict(reputation)
     except Exception as e:
-        result.errors.append(f"ipqualityscore: {e}")
+        result.errors.append(_sanitize_error(f"ipqualityscore: {e}", key))
         _trace_provider(result, "IPQualityScore", "error", normalized, note=type(e).__name__)
 
 
 async def _opencage_job(result, normalized, geo_target, config, session):
+    key = _get_api_key(config, "opencage")
     try:
         locality, status = await _lookup_cached_geocoder_async(
-            OpenCageProvider(_get_api_key(config, "opencage")), session, geo_target
+            OpenCageProvider(key), session, geo_target
         )
         _trace_provider(result, "OpenCage", status, normalized, locality_query=geo_target)
         if locality:
@@ -1306,14 +1312,15 @@ async def _opencage_job(result, normalized, geo_target, config, session):
             result.opencage_longitude = locality.longitude
             result.opencage_address = locality.formatted_address
     except Exception as e:
-        result.errors.append(f"opencage: {e}")
+        result.errors.append(_sanitize_error(f"opencage: {e}", key))
         _trace_provider(result, "OpenCage", "error", normalized, locality_query=geo_target, note=type(e).__name__)
 
 
 async def _geoapify_job(result, normalized, geo_target, config, session):
+    key = _get_api_key(config, "geoapify")
     try:
         locality, status = await _lookup_cached_geocoder_async(
-            GeoapifyProvider(_get_api_key(config, "geoapify")), session, geo_target
+            GeoapifyProvider(key), session, geo_target
         )
         _trace_provider(result, "Geoapify", status, normalized, locality_query=geo_target)
         if locality:
@@ -1322,7 +1329,7 @@ async def _geoapify_job(result, normalized, geo_target, config, session):
             result.geoapify_longitude = locality.longitude
             result.geoapify_address = locality.formatted_address
     except Exception as e:
-        result.errors.append(f"geoapify: {e}")
+        result.errors.append(_sanitize_error(f"geoapify: {e}", key))
         _trace_provider(result, "Geoapify", "error", normalized, locality_query=geo_target, note=type(e).__name__)
 
 
@@ -1524,22 +1531,16 @@ def print_results(result: ScanResult):
 
 
 def main(argv=None):
-    global DUMMY_MODE, SMALL_BANNER
-
     args = list(sys.argv[1:] if argv is None else argv)
-    DUMMY_MODE = False
-    SMALL_BANNER = False
+    dummy_mode = False
 
     if "--dummy-test" in args:
-        DUMMY_MODE = True
+        dummy_mode = True
         args.remove("--dummy-test")
         print("\n[!] MODO DUMMY ACTIVADO: No se realizaran llamadas reales a las APIs.")
         print("    Se usaran datos de ejemplo. No se consumiran creditos.\n")
 
-    banner_flags = {"-b", "--compact-banner", "--small-banner"}
-    if any(flag in args for flag in banner_flags):
-        SMALL_BANNER = True
-        args = [arg for arg in args if arg not in banner_flags]
+    ScanSettings(dummy_mode=dummy_mode)
 
     print_banner()
 

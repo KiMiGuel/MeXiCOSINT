@@ -9,7 +9,6 @@ from mexicosint import __version__
 EPILOG = """ejemplos:
   mexicosint 5512345678                  Escanea un numero mexicano
   mexicosint +525512345678               Formato internacional tambien funciona
-  mexicosint -b 5512345678               Banner compacto
   mexicosint --dummy-test 5512345678     Datos de prueba, sin llamadas a APIs
   mexicosint --set-key geoapify TU_KEY   Guarda una API key
   mexicosint --list-keys                 Muestra keys guardadas (enmascaradas)
@@ -46,14 +45,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Usa datos de prueba y evita llamadas reales a APIs.",
     )
     parser.add_argument(
-        "-b",
-        "--compact-banner",
-        "--small-banner",
-        dest="small_banner",
-        action="store_true",
-        help="Fuerza el banner compacto; alias: --small-banner.",
-    )
-    parser.add_argument(
         "--set-key",
         nargs=2,
         metavar=("SERVICIO", "KEY"),
@@ -86,8 +77,6 @@ def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
     argv: list[str] = []
     if args.dummy_test:
         argv.append("--dummy-test")
-    if args.small_banner:
-        argv.append("--small-banner")
     if args.number:
         argv.append(args.number)
     return argv

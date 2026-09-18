@@ -6,6 +6,7 @@ import aiohttp
 import requests
 
 from mexicosint.numbering import NormalizedNumber
+from mexicosint.providers.base import Provider
 from mexicosint.providers.models import ReputationEvidence
 
 
@@ -26,12 +27,8 @@ def _parse_evidence(data: dict, source: str) -> ReputationEvidence:
     )
 
 
-class IPQualityScoreProvider:
+class IPQualityScoreProvider(Provider[ReputationEvidence]):
     source = "IPQualityScore"
-
-    def __init__(self, api_key: str, timeout: int = 8):
-        self.api_key = api_key
-        self.timeout = timeout
 
     def _url(self, number: NormalizedNumber) -> str:
         return f"https://ipqualityscore.com/api/json/phone/{self.api_key}/{number.international_digits}"
