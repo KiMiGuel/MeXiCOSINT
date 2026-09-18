@@ -255,16 +255,7 @@ La herramienta no garantiza identidad, ubicación exacta, propiedad ni atribuci�
 
 ---
 
-## Estado del proyecto 🚧
-
-Este proyecto está en desarrollo activo.
-
-Funciones planeadas:
-
-- Publicación de releases en GitHub
-- Paquete `.deb` para instalación local con `apt`
-- Mejoras en documentación
-- Más pruebas y validaciones internas
+## Portense bien cabrones. 🚧
 
 ---
 
