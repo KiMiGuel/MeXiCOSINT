@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.5.4
+MeXicOSINT v2.5.5
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.5.5:
+  - Corregida fuga de API keys: errores de proveedores fallidos escribian
+    la key en texto plano en los reportes JSON exportados; ahora se redacta
+  - Unificado LADA_MAP duplicado (main.py + local_parser.py) en una sola
+    fuente (data/lada.py); corregidos 5 codigos con ciudad/estado incorrectos
+  - Clase base Provider[T] para proveedores; enum EvidenceState
+  - Eliminado el banner compacto (--small-banner); un solo diseno
+  - Eliminado modulo muerto quienhabla.py
 
 Cambios v2.5.4:
   - Base IFT/PNN actualizada al corte del 05/09/2026 (178,172 bloques geograficos,
@@ -64,7 +73,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 
-from mexicosint import config as config_store
+from mexicosint import __version__, config as config_store
 from mexicosint.core.models import (
     ApiResponse,
     ConsensusResult,
@@ -415,7 +424,7 @@ def print_banner():
     box_width = max(min(68, term_width - 2), 20)
     print()
     print(GREEN + "╔" + "═" * box_width + "╗" + RESET)
-    print(WHITE + "║" + "MeXicOSINT v2.5.4".center(box_width) + "║" + RESET)
+    print(WHITE + "║" + f"MeXicOSINT v{__version__}".center(box_width) + "║" + RESET)
     print(RED + "║" + "OSINT para numeros Mexicanos".center(box_width) + "║" + RESET)
     print(RED + "║" + "Autor: KiMiGuEL".center(box_width) + "║" + RESET)
     print(RED + "╚" + "═" * box_width + "╝" + RESET)
