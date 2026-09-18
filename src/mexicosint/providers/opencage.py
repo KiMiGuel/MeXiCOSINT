@@ -8,6 +8,7 @@ from functools import lru_cache
 import aiohttp
 import requests
 
+from mexicosint.providers.base import Provider
 from mexicosint.providers.models import LocalityEvidence
 
 _OPENCAGE_URL = "https://api.opencagedata.com/geocode/v1/json"
@@ -50,13 +51,9 @@ def _parse_item(item: dict, locality: str, source: str) -> LocalityEvidence:
     )
 
 
-class OpenCageProvider:
+class OpenCageProvider(Provider[LocalityEvidence]):
     source = "OpenCage"
     _async_cache: OrderedDict = OrderedDict()
-
-    def __init__(self, api_key: str, timeout: int = 8):
-        self.api_key = api_key
-        self.timeout = timeout
 
     @lru_cache(maxsize=256)
     def lookup(self, locality: str) -> LocalityEvidence | None:

@@ -5,7 +5,25 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from enum import Enum
 from functools import lru_cache
+
+
+class EvidenceState(str, Enum):
+    """Classification of location evidence quality.
+
+    Mixed in with str (rather than enum.StrEnum, which needs Python 3.11+)
+    so it stays a drop-in replacement for the plain strings this used to be:
+    transparent equality, f-string formatting, and JSON serialization.
+    """
+    NO_USABLE_LOCALITY = "no usable locality"
+    SINGLE_SOURCE = "single-source result"
+    STRONG_AGREEMENT = "strong agreement"
+    PARTIAL_AGREEMENT = "partial agreement"
+    CONFLICTING_SOURCES = "conflicting sources"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 @dataclass
@@ -23,7 +41,7 @@ class SourceVote:
 @dataclass
 class EvidenceDecision:
     city: str = ""
-    state: str = "no usable locality"
+    state: EvidenceState = EvidenceState.NO_USABLE_LOCALITY
     sources: list[str] = field(default_factory=list)
     all_sources: list[str] = field(default_factory=list)
 
@@ -69,7 +87,7 @@ def decide_evidence(votes: list[SourceVote]) -> EvidenceDecision:
         vote = usable[0]
         return EvidenceDecision(
             city=vote.city,
-            state="single-source result",
+            state=EvidenceState.SINGLE_SOURCE,
             sources=[vote.source],
             all_sources=[vote.source],
         )
@@ -88,11 +106,11 @@ def decide_evidence(votes: list[SourceVote]) -> EvidenceDecision:
     all_sources = [vote.source for vote in usable]
 
     if len(groups) == 1:
-        state = "strong agreement"
+        state = EvidenceState.STRONG_AGREEMENT
     elif len(best_votes) > 1:
-        state = "partial agreement"
+        state = EvidenceState.PARTIAL_AGREEMENT
     else:
-        state = "conflicting sources"
+        state = EvidenceState.CONFLICTING_SOURCES
         best_votes = usable
 
     return EvidenceDecision(

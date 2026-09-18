@@ -8,6 +8,8 @@ Uses phonenumbers lib + hardcoded MNC/LADA tables.
 import phonenumbers
 from phonenumbers import geocoder, carrier, timezone, PhoneNumberType
 
+from mexicosint.data.lada import LADA_MAP
+
 # Mexico MNC → Carrier mapping
 MNC_CARRIERS = {
     "010": "Telcel (América Móvil)",
@@ -40,47 +42,6 @@ TYPE_MAP = {
     PhoneNumberType.UNKNOWN: "UNKNOWN",
 }
 
-# Major LADA → State/City mapping
-LADA_MAP = {
-    "55":  ("Ciudad de México", "CDMX"),
-    "56":  ("Ciudad de México", "CDMX"),
-    "81":  ("Monterrey", "Nuevo León"),
-    "33":  ("Guadalajara", "Jalisco"),
-    "222": ("Puebla", "Puebla"),
-    "999": ("Mérida", "Yucatán"),
-    "442": ("Querétaro", "Querétaro"),
-    "686": ("Mexicali", "Baja California"),
-    "663": ("Tijuana", "Baja California"),
-    "664": ("Tijuana", "Baja California"),
-    "618": ("Durango", "Durango"),
-    "449": ("Aguascalientes", "Aguascalientes"),
-    "229": ("Veracruz", "Veracruz"),
-    "938": ("Villahermosa", "Tabasco"),
-    "983": ("Chetumal", "Quintana Roo"),
-    "871": ("Torreón", "Coahuila"),
-    "844": ("Saltillo", "Coahuila"),
-    "477": ("León", "Guanajuato"),
-    "722": ("Toluca", "México"),
-    "246": ("Tlaxcala", "Tlaxcala"),
-    "312": ("Colima", "Colima"),
-    "322": ("Puerto Vallarta", "Jalisco"),
-    "667": ("Culiacán", "Sinaloa"),
-    "668": ("Mazatlán", "Sinaloa"),
-    "631": ("Nogales", "Sonora"),
-    "662": ("Hermosillo", "Sonora"),
-    "961": ("Tuxtla Gutiérrez", "Chiapas"),
-    "962": ("Tapachula", "Chiapas"),
-    "735": ("Cuernavaca", "Morelos"),
-    "771": ("Pachuca", "Hidalgo"),
-    "773": ("Tulancingo", "Hidalgo"),
-    "747": ("Chilpancingo", "Guerrero"),
-    "753": ("Lázaro Cárdenas", "Michoacán"),
-    "443": ("Morelia", "Michoacán"),
-    "341": ("Ciudad Guzmán", "Jalisco"),
-    "834": ("Tampico", "Tamaulipas"),
-    "899": ("Reynosa", "Tamaulipas"),
-    "867": ("Nuevo Laredo", "Tamaulipas"),
-}
 
 def parse_mx_number(raw: str) -> dict:
     """

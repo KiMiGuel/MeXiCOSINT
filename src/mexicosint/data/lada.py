@@ -1,0 +1,123 @@
+"""LADA (Local Area Dialing Code) to locality mapping for Mexican phone numbers.
+
+Single source of truth, merged from the two dicts previously duplicated
+(and conflicting) in main.py and modules/local_parser.py. Conflicts were
+resolved against externally verified sources (claveslada.com.mx et al.).
+"""
+from __future__ import annotations
+
+from typing import Dict, Optional, Tuple
+
+LADA_MAP: Dict[str, Tuple[str, str]] = {
+    "222": ('Puebla', 'Puebla'),
+    "228": ('Jalapa', 'Veracruz'),
+    "229": ('Veracruz', 'Veracruz'),
+    "238": ('Tehuacan', 'Puebla'),
+    "241": ('Apizaco', 'Tlaxcala'),
+    "246": ('Tlaxcala', 'Tlaxcala'),
+    "248": ('San Martin Texmelucan', 'Puebla'),
+    "271": ('Cordoba', 'Veracruz'),
+    "272": ('Orizaba', 'Veracruz'),
+    "311": ('Tepic', 'Nayarit'),
+    "312": ('Colima', 'Colima'),
+    "314": ('Manzanillo', 'Colima'),
+    "322": ('Puerto Vallarta', 'Jalisco'),
+    "33": ('Guadalajara', 'Jalisco'),
+    "341": ('Ciudad Guzmán', 'Jalisco'),
+    "351": ('Zamora', 'Michoacan'),
+    "352": ('La Piedad', 'Michoacan'),
+    "353": ('Sahuayo', 'Michoacan'),
+    "378": ('Tepatitlan', 'Jalisco'),
+    "392": ('Ocotlan', 'Jalisco'),
+    "415": ('San Miguel de Allende', 'Guanajuato'),
+    "427": ('Polotitlan', 'Guanajuato'),
+    "442": ('Querétaro', 'Querétaro'),
+    "443": ('Morelia', 'Michoacán'),
+    "444": ('San Luis Potosi', 'San Luis Potosi'),
+    "445": ('Moroleon', 'Guanajuato'),
+    "449": ('Aguascalientes', 'Aguascalientes'),
+    "452": ('Uruapan', 'Michoacan'),
+    "462": ('Irapuato', 'Guanajuato'),
+    "464": ('Salamanca', 'Guanajuato'),
+    "473": ('Guanajuato', 'Guanajuato'),
+    "474": ('Lagos de Moreno', 'Jalisco'),
+    "477": ('León', 'Guanajuato'),
+    "481": ('Ciudad Valles', 'San Luis Potosi'),
+    "492": ('Zacatecas', 'Zacatecas'),
+    "493": ('Fresnillo', 'Zacatecas'),
+    "55": ('Ciudad de México', 'CDMX'),
+    "56": ('Ciudad de México', 'CDMX'),
+    "594": ('San Marcos Nepantla', 'Estado de Mexico'),
+    "595": ('Texcoco', 'Estado de Mexico'),
+    "612": ('La Paz', 'Baja California Sur'),
+    "614": ('Chihuahua', 'Chihuahua'),
+    "618": ('Durango', 'Durango'),
+    "622": ('Guaymas', 'Sonora'),
+    "624": ('Los Cabos', 'Baja California Sur'),
+    "625": ('Ciudad Cuauhtemoc', 'Chihuahua'),
+    "627": ('Parral', 'Chihuahua'),
+    "631": ('Nogales', 'Sonora'),
+    "639": ('Ciudad Delicias', 'Chihuahua'),
+    "642": ('Navojoa', 'Sonora'),
+    "644": ('Ciudad Obregon', 'Sonora'),
+    "646": ('Ensenada', 'Baja California'),
+    "653": ('San Luis Rio Colorado', 'Sonora'),
+    "656": ('Ciudad Juarez', 'Chihuahua'),
+    "661": ('Tecate', 'Baja California'),
+    "662": ('Hermosillo', 'Sonora'),
+    "663": ('Tijuana', 'Baja California'),
+    "664": ('Tijuana', 'Baja California'),
+    "665": ('Tijuana', 'Baja California'),
+    "667": ('Culiacán', 'Sinaloa'),
+    "668": ('Los Mochis', 'Sinaloa'),
+    "669": ('Mazatlan', 'Sinaloa'),
+    "686": ('Mexicali', 'Baja California'),
+    "722": ('Toluca', 'Estado de Mexico'),
+    "728": ('Lerma', 'Estado de Mexico'),
+    "733": ('Mayanalan', 'Guerrero'),
+    "734": ('Zacatepec', 'Morelos'),
+    "735": ('Cuautla', 'Morelos'),
+    "747": ('Chilpancingo', 'Guerrero'),
+    "753": ('Lázaro Cárdenas', 'Michoacán'),
+    "755": ('Zihuatanejo', 'Guerrero'),
+    "771": ('Pachuca', 'Hidalgo'),
+    "773": ('Tepeji del Rio', 'Hidalgo'),
+    "775": ('Singuilucan', 'Hidalgo'),
+    "777": ('Cuernavaca', 'Morelos'),
+    "783": ('Tuxpan', 'Veracruz'),
+    "81": ('Monterrey', 'Nuevo León'),
+    "831": ('Ciudad Mante', 'Tamaulipas'),
+    "833": ('Tampico', 'Tamaulipas'),
+    "834": ('Ciudad Victoria', 'Tamaulipas'),
+    "844": ('Saltillo', 'Coahuila'),
+    "861": ('Sabinas', 'Coahuila'),
+    "866": ('Monclova', 'Coahuila'),
+    "867": ('Nuevo Laredo', 'Tamaulipas'),
+    "868": ('Matamoros', 'Tamaulipas'),
+    "871": ('Torreón', 'Coahuila'),
+    "878": ('Piedras Negras', 'Coahuila'),
+    "899": ('Reynosa', 'Tamaulipas'),
+    "921": ('Coatzacoalcos', 'Veracruz'),
+    "922": ('Chinameca', 'Veracruz'),
+    "938": ('Ciudad del Carmen', 'Campeche'),
+    "951": ('Oaxaca', 'Oaxaca'),
+    "961": ('Tuxtla Gutiérrez', 'Chiapas'),
+    "962": ('Tapachula', 'Chiapas'),
+    "971": ('Ixtepec', 'Oaxaca'),
+    "981": ('Campeche', 'Campeche'),
+    "983": ('Chetumal', 'Quintana Roo'),
+    "993": ('Villahermosa', 'Tabasco'),
+    "998": ('Cancun', 'Quintana Roo'),
+    "999": ('Mérida', 'Yucatán'),
+}
+
+
+def get_locality(lada: str) -> Optional[Tuple[str, str]]:
+    """Get (city, state) tuple for a LADA code."""
+    return LADA_MAP.get(lada)
+
+
+def get_locality_str(lada: str) -> str:
+    """Get 'City, State' string for a LADA code, or '' if unknown."""
+    entry = LADA_MAP.get(lada)
+    return f"{entry[0]}, {entry[1]}" if entry else ""

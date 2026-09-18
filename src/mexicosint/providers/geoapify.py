@@ -8,6 +8,7 @@ from functools import lru_cache
 import aiohttp
 import requests
 
+from mexicosint.providers.base import Provider
 from mexicosint.providers.models import LocalityEvidence
 
 _GEOAPIFY_URL = "https://api.geoapify.com/v1/geocode/search"
@@ -40,13 +41,9 @@ def _parse_feature(props: dict, locality: str, source: str) -> LocalityEvidence:
     )
 
 
-class GeoapifyProvider:
+class GeoapifyProvider(Provider[LocalityEvidence]):
     source = "Geoapify"
     _async_cache: OrderedDict = OrderedDict()
-
-    def __init__(self, api_key: str, timeout: int = 8):
-        self.api_key = api_key
-        self.timeout = timeout
 
     @lru_cache(maxsize=256)
     def lookup(self, locality: str) -> LocalityEvidence | None:
