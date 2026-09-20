@@ -19,6 +19,14 @@
 
 ---
 
+<p align="center">
+  <video src="https://raw.githubusercontent.com/KiMiGuel/MeXiCOSINT/main/docs/brag.mp4" controls width="850">
+    Tu visor no soporta video embebido. Míralo aquí: docs/brag.mp4
+  </video>
+</p>
+
+---
+
 ## Descripción 🧭
 
 **MeXiCOSINT** es una herramienta de OSINT desarrollada en Python y enfocada en números telefónicos mexicanos.
