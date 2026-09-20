@@ -20,9 +20,11 @@
 ---
 
 <p align="center">
-  <video src="https://raw.githubusercontent.com/KiMiGuel/MeXiCOSINT/main/docs/brag.mp4" controls width="850">
-    Tu visor no soporta video embebido. Míralo aquí: docs/brag.mp4
-  </video>
+  <a href="https://github.com/KiMiGuel/MeXiCOSINT/raw/main/docs/brag.mp4">
+    <img src="docs/brag.jpg" alt="MeXiCOSINT demo video" width="850">
+  </a>
+  <br>
+  <sub>▶️ Click la imagen para ver el video</sub>
 </p>
 
 ---
