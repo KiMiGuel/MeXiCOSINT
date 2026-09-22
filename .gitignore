@@ -49,3 +49,6 @@ results/
 
 # IFT raw PNN downloads (reproducible via tools/update_ift_blocks.py)
 src/mexicosint/data/raw_pnn/
+
+# Claude Code
+.claude/
