@@ -446,8 +446,8 @@ def print_banner():
     print()
 
 
-def init_config():
-    return config_store.init_config(CONFIG_PATH, DUMMY_MODE)
+def init_config(use_microvault: bool = False):
+    return config_store.init_config(CONFIG_PATH, DUMMY_MODE, use_microvault=use_microvault)
 
 
 def check_keys(config):
