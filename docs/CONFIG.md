@@ -235,19 +235,50 @@ No basta con borrar la línea del README o del archivo actual. Git guarda histor
 
 ## Variables de entorno
 
-En futuras versiones, MeXiCOSINT también podría usar variables de entorno.
-
-Ejemplo:
+MeXiCOSINT admite variables de entorno como la fuente de mayor prioridad para resolver API keys. Los nombres propios del proyecto tienen el prefijo `MEXICOSINT_`; también se aceptan los nombres exportados por MicroVault:
 
 ```bash
-export ABSTRACTAPI_KEY="TU_ABSTRACTAPI_KEY"
+export MEXICOSINT_GEOAPIFY_API_KEY="TU_GEOAPIFY_KEY"
+export OPENCAGE_API_KEY="TU_OPENCAGE_KEY"
+export NUMVERIFY_API_KEY="TU_NUMVERIFY_KEY"
+export IPQUALITYSCORE_API_KEY="TU_IPQS_KEY"  # o IPGS_API_KEY del perfil MicroVault
+export ABSTRACT_PHONE_INTELLIGENCE_API_KEY="TU_ABSTRACT_KEY"  # o ABSTRACT_API_KEY
 ```
 
-Pero la forma recomendada para este proyecto es usar:
+Orden de resolución actual:
 
-```text
-~/.mx_osint_config.json
+1. Variables de entorno.
+2. MicroVault cifrado.
+3. `~/.mx_osint_config.json` (opcional).
+
+Si exportas las keys desde MicroVault, puedes conectarlo automáticamente con:
+
+```bash
+eval "$(microvault env)"
+mexicosint 5512345678
 ```
+
+Nunca guardes keys reales en el repositorio ni las incluyas en ejemplos, logs o reportes.
+
+---
+
+## Estados de credenciales y proveedores
+
+MeXiCOSINT no consume créditos para comprobar si una key está válida. Al arrancar solo indica `CONFIGURED_UNVERIFIED`; el estado real se determina durante el escaneo:
+
+| Estado | Significado |
+|---|---|
+| `MISSING` | No hay una key utilizable para ese proveedor. |
+| `NOT_REQUESTED` | El proveedor no recibió una solicitud, normalmente porque no fue necesario. |
+| `CONFIGURED_UNVERIFIED` | Hay una key, pero aún no se usó en una solicitud real. |
+| `REQUEST_SUCCESS` | El proveedor respondió correctamente. |
+| `NO_RESULT` | La respuesta fue válida, pero no contiene un resultado utilizable. |
+| `PROVIDER_ERROR` | Error de red, timeout, 5xx o fallo no clasificado. |
+| `INVALID_RESPONSE` | La respuesta HTTP fue válida, pero el contenido no coincide con el esquema esperado. |
+| `AUTH_FAILED` | Key revocada, inválida o respuesta 401/403. |
+| `QUOTA_EXCEEDED` | Cuota o límite de solicitudes agotado. |
+
+La salida incluye la fuente no secreta (`environment`, `microvault`, `json` o `dummy`), el transporte (`live_request`, `cache_hit`, `fixture`, etc.) y errores sanitizados. Nunca imprime la key.
 
 ---
 

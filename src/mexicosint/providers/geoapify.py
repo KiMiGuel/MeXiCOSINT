@@ -10,6 +10,11 @@ import requests
 
 from mexicosint.providers.base import Provider
 from mexicosint.providers.models import LocalityEvidence
+from mexicosint.providers.status import (
+    ProviderRequestError,
+    ProviderState,
+    decode_json_response,
+)
 
 _GEOAPIFY_URL = "https://api.geoapify.com/v1/geocode/search"
 
@@ -24,7 +29,26 @@ def _params(api_key: str, locality: str) -> dict:
     }
 
 
+def _features(data) -> list:
+    if not isinstance(data, dict) or not isinstance(data.get("features"), list):
+        raise ProviderRequestError(
+            ProviderState.INVALID_RESPONSE,
+            "Geoapify returned an unsupported response schema",
+            http_status=200,
+        )
+    return data["features"]
+
+
 def _parse_feature(props: dict, locality: str, source: str) -> LocalityEvidence:
+    try:
+        latitude = float(props["lat"])
+        longitude = float(props["lon"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ProviderRequestError(
+            ProviderState.INVALID_RESPONSE,
+            "Geoapify result is missing usable coordinates",
+            http_status=200,
+        ) from exc
     return LocalityEvidence(
         source=source,
         kind="numbering_locality",
@@ -34,8 +58,8 @@ def _parse_feature(props: dict, locality: str, source: str) -> LocalityEvidence:
         country=props.get("country") or "",
         country_code=(props.get("country_code") or "MX").upper(),
         formatted_address=props.get("formatted") or "",
-        latitude=props.get("lat"),
-        longitude=props.get("lon"),
+        latitude=latitude,
+        longitude=longitude,
         note="Numbering locality only; not live phone or subscriber location.",
         raw=props,
     )
@@ -55,8 +79,8 @@ class GeoapifyProvider(Provider[LocalityEvidence]):
             timeout=self.timeout,
         )
         response.raise_for_status()
-        data = response.json()
-        features = data.get("features") or []
+        data = decode_json_response(response, "Geoapify")
+        features = _features(data)
         if not features:
             return None
         return _parse_feature(features[0].get("properties", {}), locality, self.source)
@@ -76,8 +100,15 @@ class GeoapifyProvider(Provider[LocalityEvidence]):
             timeout=aiohttp.ClientTimeout(total=self.timeout),
         ) as response:
             response.raise_for_status()
-            data = await response.json(content_type=None)
-        features = data.get("features") or []
+            try:
+                data = await response.json(content_type=None)
+            except (TypeError, ValueError, aiohttp.ContentTypeError) as exc:
+                raise ProviderRequestError(
+                    ProviderState.INVALID_RESPONSE,
+                    "Geoapify returned malformed JSON",
+                    http_status=response.status,
+                ) from exc
+        features = _features(data)
         evidence = None
         if features:
             evidence = _parse_feature(features[0].get("properties", {}), locality, self.source)

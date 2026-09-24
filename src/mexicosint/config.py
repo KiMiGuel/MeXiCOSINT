@@ -40,6 +40,7 @@ ENV_VAR_MAP = {
     "abstract_phone_intelligence": [
         "MEXICOSINT_ABSTRACT_API_KEY",
         "ABSTRACT_PHONE_INTELLIGENCE_API_KEY",
+        "ABSTRACT_API_KEY",
     ],
     "numverify": [
         "MEXICOSINT_NUMVERIFY_API_KEY",
@@ -56,6 +57,7 @@ ENV_VAR_MAP = {
     "ipqualityscore": [
         "MEXICOSINT_IPQS_API_KEY",
         "IPQUALITYSCORE_API_KEY",
+        "IPGS_API_KEY",
     ],
 }
 
@@ -138,10 +140,24 @@ def connect_microvault() -> bool:
         print("    Si ya lo tienes instalado, verifica que 'microvault' este en tu PATH.")
         return False
     print("[*] Conectando a MicroVault...")
-    if bridge.connect():
+    from mexicosint.microvault_bridge import VaultConnectState
+
+    result = bridge.connect_result()
+    if result.state == VaultConnectState.CONNECTED:
         print("[+] MicroVault conectado.")
         return True
-    print("[!] No se pudo conectar a MicroVault (contraseña incorrecta o vault corrupto).")
+
+    messages = {
+        VaultConnectState.NON_INTERACTIVE: (
+            "MicroVault necesita una terminal interactiva para pedir la contraseña maestra."
+        ),
+        VaultConnectState.WRONG_PASSWORD: "La contraseña maestra de MicroVault es incorrecta.",
+        VaultConnectState.CORRUPT_VAULT: "No se pudo abrir el vault cifrado de MicroVault.",
+        VaultConnectState.TIMEOUT: "MicroVault tardó demasiado tiempo para responder.",
+        VaultConnectState.UNAVAILABLE: "MicroVault no está disponible.",
+        VaultConnectState.UNKNOWN_ERROR: "No se pudo conectar a MicroVault; verifica el vault interactivamente.",
+    }
+    print(f"[!] {messages.get(result.state, messages[VaultConnectState.UNKNOWN_ERROR])}")
     return False
 
 
@@ -170,7 +186,11 @@ def init_config(config_path: Path = CONFIG_PATH, dummy_mode: bool = False,
     # connection attempt (and hard-fails if it doesn't work); --no-microvault
     # skips MicroVault entirely, even if keys are missing.
     if not skip_microvault:
-        missing = [s for s in SAMPLE_CONFIG if not config.get(s)]
+        missing = [
+            service
+            for service in SAMPLE_CONFIG
+            if not config.get(service) and not _from_env(service)
+        ]
         bridge = _get_microvault_bridge()
         if use_microvault or (bridge is not None and missing):
             if not connect_microvault() and use_microvault:
@@ -222,23 +242,17 @@ def check_keys(config: dict, dummy_mode: bool = False) -> list[str]:
 
     for key, value in canonical_config.items():
         if dummy_mode:
-            print(f"    {key:30} OK (dummy)")
+            print(f"    {key:30} CONFIGURED_UNVERIFIED (dummy; fixture)")
             active.append(key)
         elif isinstance(value, str) and len(value) > 5:
-            # Show source
-            if _from_env(key):
-                source = "env var"
-            elif _get_from_microvault(key):
-                source = "MicroVault"
-            else:
-                source = "JSON config"
-            print(f"    {key:30} OK ({source})")
+            source = get_credential_source(key, config)
+            print(f"    {key:30} CONFIGURED_UNVERIFIED ({source})")
             active.append(key)
         else:
-            print(f"    {key:30} FALTANTE")
+            print(f"    {key:30} MISSING")
     if not dummy_mode:
-        print("[!] Nota: 'OK' solo indica que la key no esta vacia.")
-        print("    No se valido contra la API para no consumir creditos.")
+        print("[*] Las keys se validan solo al usarlas durante un escaneo real.")
+        print("    No se hacen llamadas extra para comprobar credenciales.")
     return active
 
 
@@ -261,6 +275,27 @@ def get_api_key(config: dict, key: str) -> str:
         if config.get(alias):
             return config[alias]
     return ""
+
+
+def get_credential_source(
+    service: str,
+    config: dict | None = None,
+    dummy_mode: bool = False,
+) -> str:
+    """Return non-secret credential source metadata for status reporting."""
+    if dummy_mode:
+        return "dummy"
+    if _from_env(service):
+        return "environment"
+    if _get_from_microvault(service):
+        return "microvault"
+    if config:
+        if config.get(service):
+            return "json"
+        for alias, canonical in SERVICE_ALIASES.items():
+            if canonical == service and config.get(alias):
+                return "json"
+    return "missing"
 
 
 def set_key(service: str, key: str, config_path: Path = CONFIG_PATH) -> int:

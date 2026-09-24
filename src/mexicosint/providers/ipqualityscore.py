@@ -8,9 +8,31 @@ import requests
 from mexicosint.numbering import NormalizedNumber
 from mexicosint.providers.base import Provider
 from mexicosint.providers.models import ReputationEvidence
+from mexicosint.providers.status import (
+    ProviderRequestError,
+    ProviderState,
+    decode_json_response,
+)
 
 
 def _parse_evidence(data: dict, source: str) -> ReputationEvidence:
+    if not isinstance(data, dict) or not any(
+        field in data
+        for field in (
+            "valid",
+            "active",
+            "fraud_score",
+            "recent_abuse",
+            "VOIP",
+            "carrier",
+            "line_type",
+        )
+    ):
+        raise ProviderRequestError(
+            ProviderState.INVALID_RESPONSE,
+            "IPQualityScore returned an unsupported response schema",
+            http_status=200,
+        )
     return ReputationEvidence(
         source=source,
         valid=data.get("valid"),
@@ -42,7 +64,10 @@ class IPQualityScoreProvider(Provider[ReputationEvidence]):
             timeout=self.timeout,
         )
         response.raise_for_status()
-        return _parse_evidence(response.json(), self.source)
+        return _parse_evidence(
+            decode_json_response(response, "IPQualityScore"),
+            self.source,
+        )
 
     async def alookup(self, session: aiohttp.ClientSession, number: NormalizedNumber) -> ReputationEvidence | None:
         if not self.api_key or not number.international_digits:
@@ -53,5 +78,12 @@ class IPQualityScoreProvider(Provider[ReputationEvidence]):
             timeout=aiohttp.ClientTimeout(total=self.timeout),
         ) as response:
             response.raise_for_status()
-            data = await response.json(content_type=None)
+            try:
+                data = await response.json(content_type=None)
+            except (TypeError, ValueError, aiohttp.ContentTypeError) as exc:
+                raise ProviderRequestError(
+                    ProviderState.INVALID_RESPONSE,
+                    "IPQualityScore returned malformed JSON",
+                    http_status=response.status,
+                ) from exc
         return _parse_evidence(data, self.source)

@@ -1,8 +1,8 @@
 # MeXiCOSINT English Documentation
 
-**MeXiCOSINT v2.5.2** is a Python OSINT tool focused on Mexican phone-number analysis, validation, enrichment, and reporting.
+**MeXiCOSINT v2.7.1** is a Python OSINT tool focused on Mexican phone-number analysis, validation, enrichment, and reporting.
 
-It is phone-only in v2.5.1. The old IP workflow was removed: no `--ip`, no Shodan, no IPInfo, and no IP2Location.
+It is phone-only. The old IP workflow was removed: no `--ip`, no Shodan, no IPInfo, and no IP2Location.
 
 > Treat results as OSINT indicators, not proof of identity, ownership, live location, or subscriber attribution.
 
@@ -17,6 +17,8 @@ It is phone-only in v2.5.1. The old IP workflow was removed: no `--ip`, no Shoda
 * LADA reference data as fallback or supporting evidence.
 * Canonical locality from IFT/LADA.
 * Optional enrichment from AbstractAPI, NumVerify, OpenCage, Geoapify, and IPQualityScore.
+* Structured per-provider states: configured, success, no result, authentication failure, quota failure, or provider error.
+* Explicit geocoding source (OpenCage, Geoapify, or Nominatim).
 * OSINT links using exact phone-number variants.
 * JSON reports under `output/reports/`.
 * CLI API-key management with `--set-key`, `--list-keys`, and `--config-path`.
@@ -323,6 +325,6 @@ mexicosint --list-keys
 
 ## Project Status
 
-MeXiCOSINT v2.5.2 is focused on Mexican phone-number OSINT. It does not perform IP enrichment.
+MeXiCOSINT v2.7.1 is focused on Mexican phone-number OSINT. It does not perform IP enrichment.
 
 Use it only for authorized research, self-auditing, and educational workflows.

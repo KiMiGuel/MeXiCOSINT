@@ -24,6 +24,29 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+from dataclasses import dataclass
+from enum import Enum
+
+class VaultConnectState(str, Enum):
+    CONNECTED = "connected"
+    UNAVAILABLE = "unavailable"
+    NON_INTERACTIVE = "non_interactive"
+    WRONG_PASSWORD = "wrong_password"
+    CORRUPT_VAULT = "corrupt_vault"
+    TIMEOUT = "timeout"
+    UNKNOWN_ERROR = "unknown_error"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class VaultConnectResult:
+    state: VaultConnectState
+    mode: str = ""
+    detail: str = ""
+
 
 PROFILE_NAME = "mexicosint"
 _PROFILES_FILE = os.path.join(
@@ -40,6 +63,56 @@ def _mexicosint_profile_exists() -> bool:
         return False
 
 
+def _can_prompt() -> bool:
+    try:
+        if sys.stdin and sys.stdin.isatty():
+            return True
+    except (AttributeError, OSError, ValueError):
+        pass
+    try:
+        descriptor = os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
+    except OSError:
+        return False
+    os.close(descriptor)
+    return True
+
+
+def _classify_vault_error(detail: str) -> VaultConnectState:
+    lowered = detail.lower()
+    if any(
+        marker in lowered
+        for marker in (
+            "wrong password",
+            "incorrect password",
+            "invalid password",
+            "contraseña incorrecta",
+        )
+    ):
+        return VaultConnectState.WRONG_PASSWORD
+    if any(
+        marker in lowered
+        for marker in (
+            "corrupt",
+            "decrypt",
+            "invalid token",
+            "invalid signature",
+            "fernet",
+        )
+    ):
+        return VaultConnectState.CORRUPT_VAULT
+    if any(
+        marker in lowered
+        for marker in (
+            "inappropriate ioctl",
+            "password input",
+            "end of file",
+            "eoferror",
+        )
+    ):
+        return VaultConnectState.NON_INTERACTIVE
+    return VaultConnectState.UNKNOWN_ERROR
+
+
 class MicroVaultBridge:
     """Lazy, stateful accessor for MicroVault keys.
 
@@ -53,8 +126,7 @@ class MicroVaultBridge:
         self._connected = False
         self._available = False
         self._env_cache = None     # {service: key}, populated in CLI mode
-                                    # when a profile fetch batches every key
-                                    # in one call instead of one per service
+        self.last_connect_result = VaultConnectResult(VaultConnectState.UNAVAILABLE)
 
     # ── detection ──────────────────────────────────────────────────────
 
@@ -81,35 +153,46 @@ class MicroVaultBridge:
 
     # ── connection (prompts for password) ──────────────────────────────
 
-    def connect(self) -> bool:
-        """Unlock / verify MicroVault.  Returns True on success."""
+    def connect_result(self) -> VaultConnectResult:
+        """Unlock MicroVault and retain a safe, non-secret failure reason."""
         if self._connected:
-            return True
+            return VaultConnectResult(
+                VaultConnectState.CONNECTED,
+                self._mode or "",
+            )
         if not self.is_available():
-            return False
+            self.last_connect_result = VaultConnectResult(
+                VaultConnectState.UNAVAILABLE,
+                detail="MicroVault is not installed or importable",
+            )
+            return self.last_connect_result
+        if not _can_prompt():
+            self.last_connect_result = VaultConnectResult(
+                VaultConnectState.NON_INTERACTIVE,
+                self._mode or "",
+                "MicroVault needs an interactive terminal for its password prompt",
+            )
+            return self.last_connect_result
 
         if self._mode == "python":
             try:
-                # Any read triggers the password prompt once.
-                # Use list() (not services(), which is shadowed by the module's
-                # own list() function in microvault <fixed>).
+                # Any read triggers the password prompt once. Use list(), not
+                # services(), because older MicroVault shadowed that name.
                 self._session.list()
                 self._connected = True
-                return True
-            except (FileNotFoundError, PermissionError, Exception):
-                return False
+                self.last_connect_result = VaultConnectResult(
+                    VaultConnectState.CONNECTED,
+                    "python",
+                )
+            except Exception as exc:
+                self.last_connect_result = VaultConnectResult(
+                    _classify_vault_error(f"{type(exc).__name__}: {exc}"),
+                    "python",
+                    str(exc),
+                )
+            return self.last_connect_result
 
         if self._mode == "cli":
-            # `microvault env` prompts for the password, then prints
-            # `export NAME=value` lines for every stored service.  Exit code 0
-            # means the password was accepted.  Used purely as a connection test.
-            #
-            # When a "mexicosint" profile exists, fetch it as JSON in this
-            # same call instead: one password prompt gets every key this run
-            # will need, cached by vault-native service name, so get() below
-            # never has to shell out (and re-prompt) again per service. Keys
-            # for other tools sharing the vault still never cross into this
-            # process either way.
             has_profile = _mexicosint_profile_exists()
             cmd = ["microvault", "env"]
             if has_profile:
@@ -117,21 +200,55 @@ class MicroVaultBridge:
             try:
                 result = subprocess.run(
                     cmd,
-                    capture_output=True, text=True, timeout=30,
+                    stdout=subprocess.PIPE,
+                    text=True,
+                    timeout=30,
                 )
-                if result.returncode == 0:
-                    if has_profile:
-                        try:
-                            self._env_cache = json.loads(result.stdout)
-                        except json.JSONDecodeError:
-                            self._env_cache = None
-                    self._connected = True
-                    return True
-            except (subprocess.TimeoutExpired, FileNotFoundError):
-                pass
-            return False
+            except subprocess.TimeoutExpired as exc:
+                self.last_connect_result = VaultConnectResult(
+                    VaultConnectState.TIMEOUT,
+                    "cli",
+                    str(exc),
+                )
+                return self.last_connect_result
+            except FileNotFoundError as exc:
+                self.last_connect_result = VaultConnectResult(
+                    VaultConnectState.UNAVAILABLE,
+                    "cli",
+                    str(exc),
+                )
+                return self.last_connect_result
 
-        return False
+            if result.returncode == 0:
+                if has_profile:
+                    try:
+                        self._env_cache = json.loads(result.stdout)
+                    except json.JSONDecodeError:
+                        self._env_cache = None
+                self._connected = True
+                self.last_connect_result = VaultConnectResult(
+                    VaultConnectState.CONNECTED,
+                    "cli",
+                )
+                return self.last_connect_result
+
+            detail = (result.stderr or result.stdout or "MicroVault connection failed").strip()
+            self.last_connect_result = VaultConnectResult(
+                _classify_vault_error(detail),
+                "cli",
+                detail[:300],
+            )
+            return self.last_connect_result
+
+        self.last_connect_result = VaultConnectResult(
+            VaultConnectState.UNKNOWN_ERROR,
+            self._mode or "",
+        )
+        return self.last_connect_result
+
+    def connect(self) -> bool:
+        """Compatibility wrapper around :meth:`connect_result`."""
+        return self.connect_result().state == VaultConnectState.CONNECTED
 
     # ── key retrieval ──────────────────────────────────────────────────
 
@@ -152,7 +269,9 @@ class MicroVaultBridge:
             try:
                 result = subprocess.run(
                     ["microvault", "env", service],
-                    capture_output=True, text=True, timeout=10,
+                    stdout=subprocess.PIPE,
+                    text=True,
+                    timeout=10,
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     # Output is: export SERVICE_API_KEY='value'

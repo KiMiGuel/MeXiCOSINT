@@ -172,6 +172,7 @@ Dependiendo de la configuración y API keys disponibles, un escaneo puede mostra
 * **Operadora, modalidad y fecha de asignación (IFT, offline)**
 * Región (phonenumbers) y referencia LADA
 * Operadora y ubicación reportadas por APIs (AbstractAPI, NumVerify, IPQualityScore) como evidencia de apoyo o conflicto
+* Estado estructurado de cada proveedor, su fuente de credencial y el resultado de la solicitud
 * Localidad canónica IFT/LADA con atribución clara de fuente
 * Enlaces de investigación OSINT
 * OpenCage, Geoapify o Nominatim para geocodificar la localidad IFT/LADA + mapa HTML
@@ -179,6 +180,19 @@ Dependiendo de la configuración y API keys disponibles, un escaneo puede mostra
 * Reporte JSON exportado en `output/reports/`
 
 > Los enlaces OSINT completos también quedan guardados en el reporte JSON.
+
+### Documentación oficial y endpoints usados
+
+| Servicio | Endpoint de MeXiCOSINT | Documentación oficial |
+|---|---|---|
+| Abstract Phone Intelligence | `https://phoneintelligence.abstractapi.com/v1/` | https://docs.abstractapi.com/api/phone-intelligence |
+| NumVerify / APILayer | Legacy: `https://apilayer.net/api/validate`; fallback: `https://api.apilayer.com/number_verification/validate` | https://numverify.com/documentation / https://apilayer.com/marketplace/number_verification-api |
+| OpenCage | `https://api.opencagedata.com/geocode/v1/json` | https://opencagedata.com/api |
+| Geoapify | `https://api.geoapify.com/v1/geocode/search` | https://apidocs.geoapify.com/docs/geocoding/forward-geocoding/ |
+| IPQualityScore Phone Validation | `https://ipqualityscore.com/api/json/phone/{key}/{number}` | https://www.ipqualityscore.com/documentation/ |
+| Nominatim fallback | `https://nominatim.openstreetmap.org/search` | https://nominatim.org/release-docs/latest/api/Search/ |
+
+El adaptador de NumVerify conserva el endpoint clásico `access_key` porque la key configurada fue verificada con una respuesta real. APILayer también publica un marketplace endpoint más reciente; no se cambia automáticamente porque podría requerir otro tipo de credencial.
 
 ---
 

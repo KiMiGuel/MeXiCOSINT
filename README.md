@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/Licencia-MIT-green.svg" alt="Licencia">
   <img src="https://img.shields.io/badge/OSINT-México-red.svg" alt="OSINT México">
-  <img src="https://img.shields.io/badge/Estado-Estable-brightgreen.svg" alt="Estado Estable">
+  <img src="https://img.shields.io/badge/Estado-Beta-brightgreen.svg" alt="Estado Beta">
 </p>
 
 <h1 align="center">MeXiCOSINT 📞🔍</h1>
@@ -29,7 +29,7 @@
 
 **MeXiCOSINT** es una herramienta de OSINT desarrollada en Python y enfocada en números telefónicos mexicanos.
 
-La herramienta puede validar números, analizar formatos mexicanos, consultar fuentes opcionales mediante API, procesar metadatos disponibles y generar resultados útiles para investigación autor[...]
+La herramienta puede validar números, analizar formatos mexicanos, consultar fuentes opcionales mediante API, procesar metadatos disponibles y generar resultados útiles para investigación autorizada.
 
 > Este proyecto está en fase beta. Los resultados deben tratarse como indicadores OSINT, no como evidencia absoluta.
 
@@ -42,13 +42,14 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - Análisis local de números mexicanos
 - Enriquecimiento opcional mediante APIs externas
 - Procesamiento relacionado con IFT/SNS
-- Soporte para módulo QuienHabla.mx
+- Búsquedas OSINT mediante enlaces públicos para WhatsApp y redes sociales
 - **Base oficial IFT/PNN integrada**: 177k+ bloques de numeración asignada, consulta offline
 - Operadora, modalidad y fecha de asignación directo del regulador
 - Localidad canónica IFT/LADA: bloque IFT exacto como fuente primaria y LADA como respaldo o apoyo
 - Series no geográficas 200/300/500/800/900 con alerta de números premium (900)
+- Estado estructurado por proveedor: `missing`, `not_requested`, `configured_unverified`, `request_success`, `no_result`, `auth_failed`, `quota_exceeded` y más
+- Fuente de geocodificación seleccionada visible en el resultado
 - Gestión de API keys desde la CLI (`--set-key`, `--list-keys`, `--config-path`)
-- Configuración local de API keys
 - **Rendimiento concurrente (v2.5.3)**: llamadas a APIs en paralelo (asyncio + aiohttp), pooling de conexiones HTTPS y memoización de normalización y geocodificación
 - Soporte para reportes o salidas generadas según la versión
 - Modo telefónico únicamente: sin proveedores IP ni escaneo IP
@@ -74,11 +75,16 @@ MeXiCOSINT/
 │       ├── cli.py
 │       ├── config.py
 │       ├── evidence.py
+│       ├── locality.py
 │       ├── main.py
 │       ├── microvault_bridge.py
 │       ├── numbering.py
+│       ├── presentation.py
+│       ├── reporting.py
 │       ├── core/
-│       │   └── models.py
+│       │   ├── models.py
+│       │   ├── scan_result.py
+│       │   └── settings.py
 │       ├── data/
 │       │   ├── lada.py
 │       │   ├── ift_blocks.csv.gz
@@ -87,11 +93,15 @@ MeXiCOSINT/
 │       │   ├── ift_blocks.py
 │       │   └── local_parser.py
 │       ├── providers/
+│       │   ├── abstract.py
 │       │   ├── base.py
 │       │   ├── geoapify.py
 │       │   ├── ipqualityscore.py
 │       │   ├── models.py
-│       │   └── opencage.py
+│       │   ├── nominatim.py
+│       │   ├── numverify.py
+│       │   ├── opencage.py
+│       │   └── status.py
 │       └── services/
 │           └── scanner.py
 ├── tools/
@@ -109,7 +119,7 @@ MeXiCOSINT/
 
 ### Opción 1: pipx (recomendada)
 
-MeXiCOSINT está publicado en PyPI. La forma recomendada de instalarlo es con `pipx`, que instala el comando de forma global pero aislada, sin tocar el Python del sistema (importante en Kali Linux[...]
+MeXiCOSINT está publicado en PyPI. La forma recomendada de instalarlo es con `pipx`, que instala el comando de forma global pero aislada, sin tocar el Python del sistema (importante en Kali Linux).
 
 ```bash
 sudo apt install -y pipx
@@ -221,7 +231,7 @@ Algunas funciones pueden depender de API keys externas.
 
 Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.
 
-La localidad se arma desde IFT/LADA como `<ciudad o municipio>, <estado>, Mexico`. Los valores vagos de APIs externas, como país, región o etiquetas genéricas, no se geocodifican ni reemplazan[...]
+La localidad se arma desde IFT/LADA como `<ciudad o municipio>, <estado>, Mexico`. Los valores vagos de APIs externas, como país, región o etiquetas genéricas, no se geocodifican ni reemplazan la localidad canónica.
 
 Los proveedores se usan automáticamente cuando su key existe; si falta una key, esa fuente se omite sin detener el análisis.
 
@@ -308,7 +318,25 @@ microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_
 mexicosint 5512345678
 ```
 
-Nada más. MeXiCOSINT detecta MicroVault y el perfil `mexicosint` automáticamente al arrancar — no hace falta ninguna flag — y pide tu contraseña maestra **una sola vez** por ejecución para las 5 keys juntas.
+Nada más. MeXiCOSINT detecta MicroVault automáticamente — no necesitas `--microvault`. Si las keys no están ya en el entorno, pide la contraseña maestra **una vez por cada proceso de MeXiCOSINT** y carga las 5 keys del perfil juntas.
+
+#### Si vas a hacer muchas búsquedas
+
+Desbloquea el perfil una vez **por cada terminal abierta**:
+
+```bash
+eval "$(microvault env --profile mexicosint)"
+```
+
+Después puedes ejecutar MeXiCOSINT tantas veces como quieras sin volver a escribir la contraseña:
+
+```bash
+mexicosint NUMERO_1
+mexicosint NUMERO_2
+mexicosint NUMERO_3
+```
+
+`eval` no guarda las keys en un archivo: solo las coloca en las variables de entorno de esa terminal. Se olvidan al cerrar la terminal.
 
 Casos especiales:
 
@@ -316,6 +344,8 @@ Casos especiales:
 mexicosint --no-microvault 5512345678   # omite MicroVault aunque este instalado
 mexicosint --microvault 5512345678      # fuerza la conexion (falla si no puede)
 ```
+
+Si MicroVault necesita abrir su prompt pero MeXiCOSINT se ejecuta desde una terminal no interactiva, muestra un error específico de terminal interactiva. No lo confunde con una contraseña incorrecta.
 
 ### Nombres de las keys
 

@@ -1,16 +1,18 @@
 import json
+from pathlib import Path
 
 import mexicosint.main as app
 
 
 def test_dummy_scan_writes_evidence_state_to_report(monkeypatch, tmp_path):
-    monkeypatch.setattr(app, "DUMMY_MODE", True)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=True, output_dir=tmp_path)
 
-    result = app.run_phone_scan("5512345678", app.init_config(), list(app.SAMPLE_CONFIG))
+    config = app.init_config(settings=settings)
+    result = app.run_phone_scan(
+        "5512345678", config, list(app.SAMPLE_CONFIG), settings
+    )
 
-    report = json.loads((tmp_path / app.Path(result.report_path).name).read_text(encoding="utf-8"))
+    report = json.loads(Path(result.report_path).read_text(encoding="utf-8"))
     assert result.evidence_state == "strong agreement"
     assert report["evidence_state"] == "strong agreement"
     assert report["geoapify_data"]["source"] == "Geoapify"
@@ -18,9 +20,7 @@ def test_dummy_scan_writes_evidence_state_to_report(monkeypatch, tmp_path):
 
 
 def test_dummy_scan_handles_missing_locality_without_geocoding(monkeypatch, tmp_path):
-    monkeypatch.setattr(app, "DUMMY_MODE", True)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=True, output_dir=tmp_path)
     monkeypatch.setattr(app, "IFT_BLOCKS_AVAILABLE", False)
     monkeypatch.setattr(app, "parse_mx_number", lambda raw: {"city": "Unknown", "state": "Unknown", "is_mobile": False, "number_type": "Unknown"})
     monkeypatch.setattr(app, "detect_lada_region", lambda number: "")
@@ -30,8 +30,9 @@ def test_dummy_scan_handles_missing_locality_without_geocoding(monkeypatch, tmp_
 
     result = app.run_phone_scan(
         "5512345678",
-        app.init_config(),
+        app.init_config(settings=settings),
         ["abstract_phone_intelligence", "numverify", "opencage", "geoapify"],
+        settings,
     )
 
     assert result.evidence_state == "no usable locality"
@@ -40,9 +41,7 @@ def test_dummy_scan_handles_missing_locality_without_geocoding(monkeypatch, tmp_
 
 
 def test_dummy_scan_records_provider_errors(monkeypatch, tmp_path):
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=False, output_dir=tmp_path)
     monkeypatch.setattr(app, "geocode_nominatim", lambda city: (None, None, ""))
     monkeypatch.setattr(app, "abstract_phone_intelligence_lookup", lambda e164, api_key: (_ for _ in ()).throw(RuntimeError("abstract down")))
     monkeypatch.setattr(app, "numverify_lookup", lambda e164, api_key: (_ for _ in ()).throw(RuntimeError("numverify down")))
@@ -54,6 +53,7 @@ def test_dummy_scan_records_provider_errors(monkeypatch, tmp_path):
             "numverify": "dummy_key_numverify",
         },
         ["abstract_phone_intelligence", "numverify"],
+        settings,
     )
 
     assert "strong agreement" == result.evidence_state
@@ -72,9 +72,7 @@ def test_live_scans_use_current_normalized_number_for_phone_providers(monkeypatc
             calls["ipqualityscore"].append(number.international_digits)
             return None
 
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=False, output_dir=tmp_path)
     monkeypatch.setattr(app, "geocode_nominatim", lambda city: (None, None, ""))
     monkeypatch.setattr(app, "abstract_phone_intelligence_lookup", lambda e164, api_key: calls["abstract"].append(e164) or {})
     monkeypatch.setattr(app, "numverify_lookup", lambda e164, api_key: calls["numverify"].append(e164) or {})
@@ -87,8 +85,8 @@ def test_live_scans_use_current_normalized_number_for_phone_providers(monkeypatc
     }
     active = list(config)
 
-    first = app.run_phone_scan("5512345678", config, active)
-    second = app.run_phone_scan("6634647308", config, active)
+    first = app.run_phone_scan("5512345678", config, active, settings)
+    second = app.run_phone_scan("6634647308", config, active, settings)
 
     assert calls["abstract"] == ["+525512345678", "+526634647308"]
     assert calls["numverify"] == ["+525512345678", "+526634647308"]
@@ -102,11 +100,11 @@ def test_main_resets_dummy_mode_between_invocations(monkeypatch):
 
     monkeypatch.setattr(app, "print_banner", lambda: None)
     monkeypatch.setattr(app, "init_config", lambda **kw: {})
-    monkeypatch.setattr(app, "check_keys", lambda config: [])
+    monkeypatch.setattr(app, "check_keys", lambda config, settings=None: [])
     monkeypatch.setattr(app, "print_results", lambda result: None)
 
-    def fake_scan(raw, config, active):
-        states.append(app.DUMMY_MODE)
+    def fake_scan(raw, config, active, settings):
+        states.append(settings.dummy_mode)
         return app.ScanResult(e164="+525512345678")
 
     monkeypatch.setattr(app, "run_phone_scan", fake_scan)
@@ -128,15 +126,13 @@ def test_vague_locality_is_not_sent_to_geoapify(monkeypatch, tmp_path):
             geo_calls.append(locality)
             return None
 
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=False, output_dir=tmp_path)
     monkeypatch.setattr(app, "geocode_phonenumbers", lambda parsed: "NorthWest")
     monkeypatch.setattr(app, "detect_lada_region", lambda number: "Mexico")
     monkeypatch.setattr(app, "GeoapifyProvider", FakeGeoapifyProvider)
     monkeypatch.setattr(app, "geocode_nominatim", lambda city: (None, None, ""))
 
-    result = app.run_phone_scan("5512345678", {"geoapify": "present_geo"}, ["geoapify"])
+    result = app.run_phone_scan("5512345678", {"geoapify": "present_geo"}, ["geoapify"], settings)
 
     assert "NorthWest" not in geo_calls
     assert result.geoapify_data == {}
@@ -153,13 +149,11 @@ def test_tijuana_ift_lada_data_drives_geoapify_query(monkeypatch, tmp_path):
             geo_calls.append(locality)
             return None
 
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=False, output_dir=tmp_path)
     monkeypatch.setattr(app, "GeoapifyProvider", FakeGeoapifyProvider)
     monkeypatch.setattr(app, "geocode_nominatim", lambda city: (None, None, ""))
 
-    result = app.run_phone_scan("6634647308", {"geoapify": "present_geo"}, ["geoapify"])
+    result = app.run_phone_scan("6634647308", {"geoapify": "present_geo"}, ["geoapify"], settings)
 
     assert geo_calls == ["Tijuana, Baja California, Mexico"]
     assert result.canonical_locality_query == "Tijuana, Baja California, Mexico"
@@ -186,14 +180,12 @@ def test_opencage_primary_receives_tijuana_query(monkeypatch, tmp_path):
             geo_calls.append(locality)
             return None
 
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=False, output_dir=tmp_path)
     monkeypatch.setattr(app, "OpenCageProvider", FakeOpenCageProvider)
     monkeypatch.setattr(app, "GeoapifyProvider", FakeGeoapifyProvider)
     monkeypatch.setattr(app, "geocode_nominatim", lambda city: (None, None, ""))
 
-    app.run_phone_scan("6634647308", {"opencage": "present_open", "geoapify": "present_geo"}, ["opencage", "geoapify"])
+    app.run_phone_scan("6634647308", {"opencage": "present_open", "geoapify": "present_geo"}, ["opencage", "geoapify"], settings)
 
     assert opencage_calls == ["Tijuana, Baja California, Mexico"]
     assert geo_calls == ["Tijuana, Baja California, Mexico"]
@@ -210,14 +202,12 @@ def test_two_ift_localities_produce_different_geocoding_queries(monkeypatch, tmp
             geo_calls.append(locality)
             return None
 
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=False, output_dir=tmp_path)
     monkeypatch.setattr(app, "GeoapifyProvider", FakeGeoapifyProvider)
     monkeypatch.setattr(app, "geocode_nominatim", lambda city: (None, None, ""))
 
-    app.run_phone_scan("5512345678", {"geoapify": "present_geo"}, ["geoapify"])
-    app.run_phone_scan("6634647308", {"geoapify": "present_geo"}, ["geoapify"])
+    app.run_phone_scan("5512345678", {"geoapify": "present_geo"}, ["geoapify"], settings)
+    app.run_phone_scan("6634647308", {"geoapify": "present_geo"}, ["geoapify"], settings)
 
     assert geo_calls == [
         "Ciudad de Mexico, Ciudad de Mexico, Mexico",
@@ -236,9 +226,7 @@ def test_provider_locality_cannot_overwrite_exact_ift_locality(monkeypatch, tmp_
             geo_calls.append(locality)
             return None
 
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=False, output_dir=tmp_path)
     monkeypatch.setattr(app, "GeoapifyProvider", FakeGeoapifyProvider)
     monkeypatch.setattr(app, "abstract_phone_intelligence_lookup", lambda e164, api_key: {"phone_number": e164})
     monkeypatch.setattr(app, "parse_abstract", lambda data: {"location": "NorthWest", "carrier": "X", "line_type": "mobile"})
@@ -250,6 +238,7 @@ def test_provider_locality_cannot_overwrite_exact_ift_locality(monkeypatch, tmp_
         "6634647308",
         {"geoapify": "present_geo", "abstract_phone_intelligence": "present_abs", "numverify": "present_num"},
         ["geoapify", "abstract_phone_intelligence", "numverify"],
+        settings,
     )
 
     assert result.consensus_city == "Tijuana, Baja California"
@@ -276,14 +265,12 @@ def test_geocoder_fallbacks_receive_same_canonical_query(monkeypatch, tmp_path):
             calls["geoapify"].append(locality)
             return None
 
-    monkeypatch.setattr(app, "DUMMY_MODE", False)
-    monkeypatch.setattr(app, "REPORT_DIR", tmp_path)
-    monkeypatch.setattr(app, "MAP_DIR", tmp_path)
+    settings = app.ScanSettings(dummy_mode=False, output_dir=tmp_path)
     monkeypatch.setattr(app, "OpenCageProvider", FakeOpenCageProvider)
     monkeypatch.setattr(app, "GeoapifyProvider", FakeGeoapifyProvider)
     monkeypatch.setattr(app, "geocode_nominatim", lambda city: calls["nominatim"].append(city) or (None, None, ""))
 
-    app.run_phone_scan("6634647308", {"opencage": "present_open", "geoapify": "present_geo"}, ["opencage", "geoapify"])
+    app.run_phone_scan("6634647308", {"opencage": "present_open", "geoapify": "present_geo"}, ["opencage", "geoapify"], settings)
 
     assert calls == {
         "opencage": ["Tijuana, Baja California, Mexico"],

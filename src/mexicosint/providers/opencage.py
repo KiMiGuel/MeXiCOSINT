@@ -10,6 +10,11 @@ import requests
 
 from mexicosint.providers.base import Provider
 from mexicosint.providers.models import LocalityEvidence
+from mexicosint.providers.status import (
+    ProviderRequestError,
+    ProviderState,
+    decode_json_response,
+)
 
 _OPENCAGE_URL = "https://api.opencagedata.com/geocode/v1/json"
 
@@ -25,9 +30,28 @@ def _params(api_key: str, locality: str) -> dict:
     }
 
 
+def _results(data) -> list:
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+        raise ProviderRequestError(
+            ProviderState.INVALID_RESPONSE,
+            "OpenCage returned an unsupported response schema",
+            http_status=200,
+        )
+    return data["results"]
+
+
 def _parse_item(item: dict, locality: str, source: str) -> LocalityEvidence:
     components = item.get("components") or {}
     geometry = item.get("geometry") or {}
+    try:
+        latitude = float(geometry["lat"])
+        longitude = float(geometry["lng"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ProviderRequestError(
+            ProviderState.INVALID_RESPONSE,
+            "OpenCage result is missing usable coordinates",
+            http_status=200,
+        ) from exc
     return LocalityEvidence(
         source=source,
         kind="numbering_locality",
@@ -44,8 +68,8 @@ def _parse_item(item: dict, locality: str, source: str) -> LocalityEvidence:
         country=components.get("country") or "",
         country_code=(components.get("country_code") or "mx").upper(),
         formatted_address=item.get("formatted") or "",
-        latitude=geometry.get("lat"),
-        longitude=geometry.get("lng"),
+        latitude=latitude,
+        longitude=longitude,
         note="Numbering locality only; not live phone or subscriber location.",
         raw=item,
     )
@@ -65,8 +89,8 @@ class OpenCageProvider(Provider[LocalityEvidence]):
             timeout=self.timeout,
         )
         response.raise_for_status()
-        data = response.json()
-        results = data.get("results") or []
+        data = decode_json_response(response, "OpenCage")
+        results = _results(data)
         if not results:
             return None
         return _parse_item(results[0], locality, self.source)
@@ -86,8 +110,15 @@ class OpenCageProvider(Provider[LocalityEvidence]):
             timeout=aiohttp.ClientTimeout(total=self.timeout),
         ) as response:
             response.raise_for_status()
-            data = await response.json(content_type=None)
-        results = data.get("results") or []
+            try:
+                data = await response.json(content_type=None)
+            except (TypeError, ValueError, aiohttp.ContentTypeError) as exc:
+                raise ProviderRequestError(
+                    ProviderState.INVALID_RESPONSE,
+                    "OpenCage returned malformed JSON",
+                    http_status=response.status,
+                ) from exc
+        results = _results(data)
         evidence = None
         if results:
             evidence = _parse_item(results[0], locality, self.source)

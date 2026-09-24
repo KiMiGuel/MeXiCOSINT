@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MeXiCOSINT — La herramienta OSINT para números telefónicos mexicanos</title>
-<meta name="description" content="MeXiCOSINT: OSINT para números telefónicos mexicanos con la base oficial IFT/PNN integrada. Operadora, modalidad y fecha de asignación, offline.">
+<meta name="description" content="MeXiCOSINT v2.7.1: OSINT para números telefónicos mexicanos con base IFT/PNN offline, validación, geocodificación y estados de proveedores.">
 <style>
   :root{
     --bg:#0b0f0c;
@@ -66,6 +66,8 @@
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
   .card h3{font-size:1.05rem;margin:12px 0 8px}
   .card p{color:var(--muted);font-size:.93rem}
+  .feature-icon{width:42px;height:42px;display:block;margin:2px 0 4px}
+  .section-icon{width:38px;height:38px;vertical-align:middle;margin-right:10px}
   .card .ico{font-size:1.5rem}
   .card.star{border-color:var(--green2);background:linear-gradient(160deg,#12201580,var(--panel))}
   .card.star .pill{display:inline-block;font-family:var(--mono);font-size:.68rem;color:#04120a;background:var(--green);border-radius:6px;padding:2px 8px;margin-bottom:6px;font-weight:700}
@@ -133,7 +135,7 @@
 
 <nav>
   <div class="wrap">
-    <div class="logo">MeXi<span>COSINT</span><span class="badge-ver">v2.7.0</span></div>
+    <div class="logo">MeXi<span>COSINT</span><span class="badge-ver">v2.7.1</span></div>
     <div class="links">
       <a href="#que-hace">Qué hace</a>
       <a href="#ift">Base IFT</a>
@@ -185,39 +187,49 @@ mexicosint 5512345678</pre>
     <div class="grid">
       <div class="card star">
         <span class="pill">EXCLUSIVO</span>
-        <div class="ico">🏛️</div>
+        <img class="feature-icon" src="icons/ift.svg" alt="Icono del registro IFT">
         <h3>Base oficial IFT/PNN offline</h3>
         <p>178,172 bloques de numeración asignada del Plan Nacional de Numeración, dentro del paquete. Operadora, modalidad y fecha de asignación — directo del regulador, sin conexión.</p>
       </div>
       <div class="card">
-        <div class="ico">✅</div>
+        <img class="feature-icon" src="icons/phone.svg" alt="Icono de validación telefónica">
         <h3>Validación completa</h3>
         <p>Formato nacional e internacional (E.164), región por phonenumbers, referencia LADA y parsing local de números mexicanos.</p>
       </div>
       <div class="card">
-        <div class="ico">🗳️</div>
+        <img class="feature-icon" src="icons/evidence.svg" alt="Icono de estados de evidencia">
         <h3>Estados de evidencia</h3>
         <p>IFT/PNN y LADA definen la localidad canónica; AbstractAPI, NumVerify e IPQualityScore agregan apoyo o conflicto — sin falsas certezas.</p>
       </div>
       <div class="card">
-        <div class="ico">🚨</div>
+        <img class="feature-icon" src="icons/alert.svg" alt="Icono de alerta">
         <h3>Detección de números premium</h3>
         <p>Series 200/300/500/800/900 identificadas automáticamente. Los números 900 (sobre cuota) disparan alerta roja de posible estafa.</p>
       </div>
       <div class="card">
-        <div class="ico">🔗</div>
+        <img class="feature-icon" src="icons/links.svg" alt="Icono de enlaces de investigación">
         <h3>Enlaces de investigación</h3>
         <p>Links OSINT verificados: WhatsApp por <code>wa.me</code> y búsquedas Google con variantes exactas del número, incluyendo Facebook, TikTok, X y Twitter.</p>
       </div>
       <div class="card">
-        <div class="ico">📁</div>
+        <img class="feature-icon" src="icons/report.svg" alt="Icono de reportes">
         <h3>Reportes exportables</h3>
         <p>Reporte JSON con hash SHA-256 y mapa HTML de la localidad canónica IFT/LADA. Listo para documentar investigaciones.</p>
       </div>
       <div class="card">
-        <div class="ico">⚡</div>
+        <img class="feature-icon" src="icons/speed.svg" alt="Icono de rendimiento concurrente">
         <h3>Rápida y concurrente</h3>
         <p>Desde v2.5.3: llamadas a APIs en paralelo con asyncio + aiohttp, reutilización de conexiones HTTPS y caché de geocodificación. Escaneos mucho más rápidos con varias llaves activas.</p>
+      </div>
+      <div class="card">
+        <img class="feature-icon" src="icons/evidence.svg" alt="Icono de diagnóstico">
+        <h3>Diagnóstico transparente</h3>
+        <p>Cada proveedor muestra su estado, fuente de credencial, transporte y errores sanitizados: request success, no result, auth failed, quota exceeded o provider error.</p>
+      </div>
+      <div class="card">
+        <img class="feature-icon" src="icons/microvault.svg" alt="Icono de bóveda cifrada">
+        <h3>MicroVault opcional</h3>
+        <p>Desbloquea el perfil <code>mexicosint</code> una vez por terminal. Las keys reales nunca se imprimen en el reporte.</p>
       </div>
     </div>
   </div>
@@ -302,7 +314,7 @@ mexicosint 5512345678</pre>
   <div class="wrap">
     <p class="kicker">Llaves API</p>
     <h2>Potencia MeXiCOSINT al 100% con llaves API</h2>
-    <p class="lead">La base oficial del IFT y la validación local funcionan <b>sin configurar nada</b>. Con llaves API opcionales, MeXiCOSINT agrega validación, reputación, fichas públicas de negocio y geocodificación de la localidad IFT/LADA. Esa localidad no es GPS ni ubicación del suscriptor.</p>
+    <p class="lead">La base oficial del IFT y la validación local funcionan <b>sin configurar nada</b>. Con llaves API opcionales, MeXiCOSINT agrega validación, reputación, estados de proveedores y geocodificación de la localidad IFT/LADA. Esa localidad no es GPS ni ubicación del suscriptor.</p>
 
     <div class="api">
       <div class="api-head">
@@ -406,13 +418,13 @@ mexicosint --set-key numverify TU_KEY</div>
 <section id="microvault">
   <div class="wrap">
     <p class="kicker">Opcional · Si tienes MicroVault</p>
-    <h2>Guarda tus llaves cifradas con MicroVault 🔐</h2>
+    <h2><img class="section-icon" src="icons/microvault.svg" alt="Icono de MicroVault">Guarda tus llaves cifradas con MicroVault 🔐</h2>
     <p class="lead"><a href="https://kimiguel.github.io/MicroVault/">MicroVault</a> es una bóveda local y cifrada para tus API keys: un solo archivo, una sola contraseña maestra, sin nube ni cuentas. Si ya la usas, MeXiCOSINT puede leer tus llaves directo de la bóveda — sin archivo JSON. Y si <b>no</b> tienes MicroVault, no cambia nada: MeXiCOSINT sigue funcionando normal con <code>~/.mx_osint_config.json</code> o variables de entorno.</p>
     <div class="steps">
       <div class="step">
         <div class="n">A</div>
         <h3>Cargar una vez por terminal</h3>
-        <p><code>eval "$(microvault env)"</code><br>Pide tu contraseña maestra una sola vez; luego usa MeXiCOSINT con normalidad.</p>
+        <p><code>eval "$(microvault env --profile mexicosint)"</code><br>Desbloquea el perfil una vez por terminal; luego usa MeXiCOSINT normalmente.</p>
       </div>
       <div class="step">
         <div class="n">B</div>

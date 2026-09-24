@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.7.0
+MeXicOSINT v2.7.1
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.7.1:
+  - Refactor de nucleo con ScanSettings, modulos de proveedor y presentacion
+  - Estados estructurados de proveedores, errores sanitizados y fuente de geocodificacion
+  - Fallback de NumVerify/APILayer al endpoint marketplace
+  - Mejoras de diagnostico MicroVault y variables de entorno del perfil
 
 Cambios v2.7.0:
   - MicroVault ya no requiere el flag --microvault: se auto-detecta y se
@@ -98,35 +104,67 @@ Correcciones v2.2.4:
 
 import asyncio
 import aiohttp
-import requests
 import sys
-import json
-import re
 import urllib.parse
-import hashlib
 import uuid
-import unicodedata
-from functools import lru_cache
-from pathlib import Path
-from datetime import datetime, timezone
-from dataclasses import dataclass, field, asdict
+from datetime import datetime
+from dataclasses import asdict
 
-from mexicosint import __version__, config as config_store
-from mexicosint.core.models import (
-    ApiResponse,
-    ConsensusResult,
-    GeocodingResult,
-    IftBlockInfo,
-    PhoneInfo,
-    ReputationResult,
-)
+from mexicosint import config as config_store
+from mexicosint.core.scan_result import ScanResult
+from mexicosint.core.settings import ScanSettings
 from mexicosint.data.lada import get_locality_str
 from mexicosint.evidence import EvidenceState, SourceVote, decide_evidence, normalize_city
+from mexicosint.locality import (
+    clean_place_name as _clean_place_name,
+    is_concrete_locality as _is_concrete_locality,
+    split_lada_region as _split_lada_region,
+)
 from mexicosint.numbering import normalize_mx_number
 from mexicosint.modules.local_parser import parse_mx_number
+from mexicosint.providers.abstract import (
+    SAMPLE_ABSTRACT_INTEL,
+    AbstractPhoneIntelligenceProvider,
+    parse_abstract,
+)
 from mexicosint.providers.geoapify import GeoapifyProvider
 from mexicosint.providers.ipqualityscore import IPQualityScoreProvider
+from mexicosint.providers.numverify import (
+    SAMPLE_NUMVERIFY,
+    NumVerifyProvider,
+    parse_numverify,
+)
+from mexicosint.providers.nominatim import geocode_nominatim
 from mexicosint.providers.opencage import OpenCageProvider
+from mexicosint.providers.status import (
+    ProviderState,
+    ProviderStatus,
+    classify_provider_exception,
+)
+from mexicosint.presentation import (
+    _render_figlet,
+    _rich_or_plain,
+    _section_break,
+    plain_print_api_results,
+    plain_print_consensus,
+    plain_print_errors,
+    plain_print_geo,
+    plain_print_osint_links,
+    plain_print_provider_states,
+    plain_print_report,
+    plain_print_subscriber,
+    print_banner,
+    print_results,
+    rich_print_api_results,
+    rich_print_consensus,
+    rich_print_errors,
+    rich_print_geo,
+    rich_print_osint_links,
+    rich_print_provider_states,
+    rich_print_report,
+    rich_print_subscriber,
+)
+from mexicosint.reporting import generate_map, save_report
 
 try:
     from mexicosint.modules.ift_blocks import lookup_block, modality_label
@@ -134,56 +172,9 @@ try:
 except ImportError:
     IFT_BLOCKS_AVAILABLE = False
 
-try:
-    from rich.console import Console
-    from rich.table import Table
-    from rich.rule import Rule
-    from rich import box
-    RICH_AVAILABLE = True
-except ImportError:
-    RICH_AVAILABLE = False
-
-# Shared Rich console (one instance for all output sections)
-_console = Console() if RICH_AVAILABLE else None
-
 CONFIG_PATH = config_store.CONFIG_PATH
-OUTPUT_DIR = Path("output")
-REPORT_DIR = OUTPUT_DIR / "reports"
-MAP_DIR = OUTPUT_DIR / "maps"
-
-
-def _ensure_output_dirs() -> None:
-    """Create output directories lazily, on first report/map write."""
-    for d in (REPORT_DIR, MAP_DIR):
-        d.mkdir(parents=True, exist_ok=True)
-
-
-# Shared sync HTTP session: connection pooling/keep-alive for the sync fallback path
-_SESSION = requests.Session()
 
 SAMPLE_CONFIG = config_store.SAMPLE_CONFIG
-
-DUMMY_MODE = False
-
-
-@dataclass
-class ScanSettings:
-    """Config entry point for new code paths.
-
-    DUMMY_MODE stays the source of truth that the rest of main.py reads,
-    since the existing test suite monkeypatches that global directly.
-    Constructing ScanSettings syncs into it so both call paths (direct
-    global access, and this object) agree.
-    """
-    dummy_mode: bool = False
-
-    def __post_init__(self) -> None:
-        global DUMMY_MODE
-        DUMMY_MODE = self.dummy_mode
-
-
-def _sha256(data: str) -> str:
-    return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
 def _sanitize_error(text: str, api_key: str | None) -> str:
@@ -197,190 +188,17 @@ def _sanitize_error(text: str, api_key: str | None) -> str:
     """
     if not api_key:
         return text
-    return text.replace(api_key, "***REDACTED***")
-
-
-def _now_utc() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-@dataclass
-class ScanResult:
-    scan_id: str = ""
-    raw_input: str = ""
-    detected_format: str = ""
-    international_digits: str = ""
-    is_possible: bool = False
-    is_mexican: bool = False
-    e164: str = ""
-    valid: bool = False
-    country_code: str = ""
-    national_number: str = ""
-    region_phonenumbers: str = ""
-    lada_region: str = ""
-    ift_carrier: str = ""
-    ift_modality: str = ""
-    ift_zona: str = ""
-    ift_fecha_asignacion: str = ""
-    ift_service_type: str = ""
-    canonical_locality_city: str = ""
-    canonical_locality_state: str = ""
-    canonical_locality_query: str = ""
-    canonical_locality_source: str = ""
-    abstract_data: dict = field(default_factory=dict)
-    numverify_data: dict = field(default_factory=dict)
-    abstract_location: str = ""
-    numverify_location: str = ""
-    abstract_carrier: str = ""
-    numverify_carrier: str = ""
-    abstract_line_type: str = ""
-    numverify_line_type: str = ""
-    consensus_city: str = ""
-    consensus_confidence: float = 0.0
-    consensus_sources: list = field(default_factory=list)
-    evidence_state: EvidenceState = EvidenceState.NO_USABLE_LOCALITY
-    all_votes: list = field(default_factory=list)
-    latitude: float = None
-    longitude: float = None
-    nominatim_address: str = ""
-    opencage_data: dict = field(default_factory=dict)
-    opencage_latitude: float = None
-    opencage_longitude: float = None
-    opencage_address: str = ""
-    geoapify_data: dict = field(default_factory=dict)
-    geoapify_latitude: float = None
-    geoapify_longitude: float = None
-    geoapify_address: str = ""
-    ipqualityscore_data: dict = field(default_factory=dict)
-    provider_trace: list = field(default_factory=list)
-    osint_links: dict = field(default_factory=dict)
-    map_path: str = ""
-    report_path: str = ""
-    report_hash: str = ""
-    errors: list = field(default_factory=list)
-    # FIX #3: Use default_factory instead of direct function call
-    scan_timestamp: str = field(default_factory=_now_utc)
-
-    @property
-    def phone(self) -> PhoneInfo:
-        return PhoneInfo(
-            raw_input=self.raw_input,
-            detected_format=self.detected_format,
-            international_digits=self.international_digits,
-            is_possible=self.is_possible,
-            is_mexican=self.is_mexican,
-            e164=self.e164,
-            valid=self.valid,
-            country_code=self.country_code,
-            national_number=self.national_number,
-            region_phonenumbers=self.region_phonenumbers,
-            lada_region=self.lada_region,
-        )
-
-    @property
-    def ift_block(self) -> IftBlockInfo:
-        return IftBlockInfo(
-            carrier=self.ift_carrier,
-            modality=self.ift_modality,
-            zona=self.ift_zona,
-            fecha_asignacion=self.ift_fecha_asignacion,
-            service_type=self.ift_service_type,
-        )
-
-    @property
-    def abstract(self) -> ApiResponse:
-        return ApiResponse(
-            provider="AbstractAPI",
-            raw=self.abstract_data,
-            location=self.abstract_location,
-            carrier=self.abstract_carrier,
-            line_type=self.abstract_line_type,
-        )
-
-    @property
-    def numverify(self) -> ApiResponse:
-        return ApiResponse(
-            provider="NumVerify",
-            raw=self.numverify_data,
-            location=self.numverify_location,
-            carrier=self.numverify_carrier,
-            line_type=self.numverify_line_type,
-        )
-
-    @property
-    def opencage(self) -> GeocodingResult:
-        return GeocodingResult(
-            provider="OpenCage",
-            raw=self.opencage_data,
-            latitude=self.opencage_latitude,
-            longitude=self.opencage_longitude,
-            address=self.opencage_address,
-        )
-
-    @property
-    def geoapify(self) -> GeocodingResult:
-        return GeocodingResult(
-            provider="Geoapify",
-            raw=self.geoapify_data,
-            latitude=self.geoapify_latitude,
-            longitude=self.geoapify_longitude,
-            address=self.geoapify_address,
-        )
-
-    @property
-    def ipqualityscore(self) -> ReputationResult:
-        return ReputationResult(provider="IPQualityScore", raw=self.ipqualityscore_data)
-
-    @property
-    def consensus(self) -> ConsensusResult:
-        return ConsensusResult(
-            state=self.evidence_state,
-            city=self.consensus_city,
-            confidence=self.consensus_confidence,
-            sources=self.consensus_sources,
-            all_votes=self.all_votes,
-        )
-
-    def to_dict(self):
-        return asdict(self)
-
-    def to_report_dict(self):
-        """Return dict for JSON export, excluding internal report fields."""
-        data = self.to_dict()
-        # FIX #7: Remove report_path and report_hash from payload before hashing
-        data.pop("report_path", None)
-        data.pop("report_hash", None)
-        return data
+    redacted = text.replace(api_key, "***REDACTED***")
+    for encoded in {
+        urllib.parse.quote(api_key, safe=""),
+        urllib.parse.quote_plus(api_key),
+    }:
+        if encoded != api_key:
+            redacted = redacted.replace(encoded, "***REDACTED***")
+    return redacted
 
 
 # --- SAMPLE DATA (DUMMY MODE) ---
-SAMPLE_ABSTRACT_INTEL = {
-    "phone_number": "+525512345678",
-    "phone_format": {"international": "+52 55 1234 5678", "national": "(55) 1234-5678"},
-    "phone_carrier": {"name": "Telcel", "line_type": "mobile", "mcc": 334, "mnc": 20},
-    "phone_location": {
-        "country_name": "Mexico",
-        "country_code": "MX",
-        "country_prefix": "+52",
-        "region": "Ciudad de Mexico",
-        "city": "Ciudad de Mexico",
-        "timezone": "America/Mexico_City"
-    },
-    "phone_validation": {"is_valid": True, "line_status": "active", "is_voip": False},
-    "phone_risk": {"risk_level": "low", "is_disposable": False, "is_abuse_detected": False}
-}
-
-SAMPLE_NUMVERIFY = {
-    "valid": True,
-    "local_format": "5512345678",
-    "international_format": "+525512345678",
-    "country_name": "Mexico",
-    "country_code": "MX",
-    "location": "Mexico City",
-    "carrier": "Telcel",
-    "line_type": "mobile"
-}
-
 SAMPLE_GEOAPIFY = {
     "source": "Geoapify",
     "kind": "numbering_locality",
@@ -408,78 +226,23 @@ SAMPLE_IPQUALITYSCORE = {
     "region": "Ciudad de Mexico",
 }
 
-# --- BANNER ---
-GREEN = '\033[1;32m'
-WHITE = '\033[1;37m'
-RED = '\033[1;31m'
-RESET = '\033[0m'
+def init_config(
+    use_microvault: bool = False,
+    skip_microvault: bool = False,
+    settings: ScanSettings | None = None,
+):
+    settings = settings or ScanSettings()
+    return config_store.init_config(
+        settings.config_path,
+        settings.dummy_mode,
+        use_microvault=use_microvault,
+        skip_microvault=skip_microvault,
+    )
 
 
-def _render_figlet(text, font_arg):
-    import subprocess
-    try:
-        result = subprocess.run(
-            ["figlet", "-f", font_arg, text],
-            capture_output=True, text=True, timeout=5
-        )
-        if result.returncode == 0:
-            return result.stdout.rstrip().splitlines()
-    except Exception:
-        pass
-    return None
-
-
-def print_banner():
-    import shutil
-    try:
-        term_width = shutil.get_terminal_size().columns
-    except Exception:
-        term_width = 80
-
-    chosen_lines = _render_figlet("MeXicOSINT", "small")
-
-    if chosen_lines:
-        lines = chosen_lines
-        max_width = max(len(line) for line in lines)
-        if max_width > term_width - 4:
-            max_width = term_width - 4
-        border = GREEN + "╔" + "═" * (max_width + 4) + "╗" + RESET
-        bottom = RED + "╚" + "═" * (max_width + 4) + "╝" + RESET
-        print()
-        print(border)
-        for line in lines:
-            line = line[:max_width]
-            padding = max_width - len(line)
-            third = len(line) // 3
-            left = line[:third]
-            mid = line[third:2*third]
-            right = line[2*third:]
-            colored = f"{GREEN}{left}{WHITE}{mid}{RED}{right}{RESET}"
-            print(f"{GREEN}║  {colored}{' ' * padding}  {RED}║{RESET}")
-        print(bottom)
-        print(f"{WHITE}         OSINT para numeros telefonicos Mexicanos{RESET}")
-        print(f"{RED}                   Autor: KiMiGuEL{RESET}")
-        print()
-        return
-
-    # figlet unavailable: plain text fallback, sized to the real terminal width
-    box_width = max(min(68, term_width - 2), 20)
-    print()
-    print(GREEN + "╔" + "═" * box_width + "╗" + RESET)
-    print(WHITE + "║" + f"MeXicOSINT v{__version__}".center(box_width) + "║" + RESET)
-    print(RED + "║" + "OSINT para numeros Mexicanos".center(box_width) + "║" + RESET)
-    print(RED + "║" + "Autor: KiMiGuEL".center(box_width) + "║" + RESET)
-    print(RED + "╚" + "═" * box_width + "╝" + RESET)
-    print()
-
-
-def init_config(use_microvault: bool = False, skip_microvault: bool = False):
-    return config_store.init_config(CONFIG_PATH, DUMMY_MODE, use_microvault=use_microvault,
-                                     skip_microvault=skip_microvault)
-
-
-def check_keys(config):
-    return config_store.check_keys(config, DUMMY_MODE)
+def check_keys(config, settings: ScanSettings | None = None):
+    settings = settings or ScanSettings()
+    return config_store.check_keys(config, settings.dummy_mode)
 
 
 def _get_api_key(config, key):
@@ -550,73 +313,78 @@ def geocode_phonenumbers(parsed):
         return None
 
 
-# --- NOMINATIM GEOCODING ---
-# Vague/generic locations that should NOT be geocoded (false positive prevention)
-VAGUE_LOCATIONS = {
-    "unknown", "mexico", "méxico", "unknown city",
-    "n/a", "not found", "sin informacion", "no hay informacion",
-    "desconocido", "indefinido", "general", "nacional", "republica mexicana",
-    "estados unidos mexicanos",
-}
-GENERIC_LOCALITIES = {
-    "northwest", "north west", "noroeste", "noroeste de mexico",
-    "northeast", "north east", "noreste", "noreste de mexico",
-    "central", "centro", "sur", "south", "southeast", "south east", "sureste",
-    "southwest", "south west", "suroeste", "baja california", "baja california sur",
-    "sonora", "chihuahua", "coahuila", "nuevo leon", "tamaulipas", "sinaloa",
-    "durango", "zacatecas", "jalisco", "colima", "michoacan", "guanajuato",
-    "queretaro", "hidalgo", "estado de mexico", "morelos", "puebla", "tlaxcala",
-    "veracruz", "guerrero", "oaxaca", "chiapas", "tabasco", "campeche",
-    "yucatan", "quintana roo", "aguascalientes", "nayarit", "san luis potosi",
+PROVIDER_DISPLAY_NAMES = {
+    "abstract_phone_intelligence": "AbstractAPI",
+    "numverify": "NumVerify",
+    "opencage": "OpenCage",
+    "geoapify": "Geoapify",
+    "ipqualityscore": "IPQualityScore",
 }
 
-_NON_ALNUM_COMMA_RE = re.compile(r"[^a-z0-9\s,]")
-_WHITESPACE_RE = re.compile(r"\s+")
+
+def _initialize_provider_states(
+    result: ScanResult,
+    config: dict,
+    active: list[str],
+    settings: ScanSettings,
+) -> None:
+    for service in SAMPLE_CONFIG:
+        source = config_store.get_credential_source(
+            service,
+            config,
+            dummy_mode=settings.dummy_mode,
+        )
+        state = (
+            ProviderState.CONFIGURED_UNVERIFIED
+            if service in active
+            else ProviderState.MISSING
+        )
+        result.provider_states[service] = ProviderStatus(
+            state=state,
+            source=source,
+        )
+    result.provider_states["nominatim"] = ProviderStatus(
+        state=ProviderState.NOT_REQUESTED,
+        source="keyless",
+    )
 
 
-@lru_cache(maxsize=1024)
-def _normalize_for_vague(city_region: str) -> str:
-    """Normalize string for VAGUE_LOCATIONS comparison (accents, lowercase, strip)."""
-    city_region = city_region.lower().strip()
-    city_region = unicodedata.normalize('NFKD', city_region).encode('ASCII', 'ignore').decode('ASCII')
-    return city_region
+def _set_provider_state(
+    result: ScanResult,
+    service: str,
+    status: ProviderStatus,
+) -> None:
+    previous = result.provider_states.get(service)
+    if previous and not status.source:
+        status = ProviderStatus(
+            state=status.state,
+            source=previous.source,
+            transport=status.transport,
+            request_attempted=status.request_attempted,
+            http_status=status.http_status,
+            provider_code=status.provider_code,
+            detail=status.detail,
+        )
+    result.provider_states[service] = status
 
 
-@lru_cache(maxsize=1024)
-def _is_concrete_locality(city_region: str) -> bool:
-    if not city_region:
-        return False
-    normalized = _normalize_for_vague(city_region)
-    normalized = _NON_ALNUM_COMMA_RE.sub(" ", normalized)
-    normalized = _WHITESPACE_RE.sub(" ", normalized).strip()
-    compact = normalized.replace(",", " ").strip()
-    if not compact:
-        return False
-    if compact in VAGUE_LOCATIONS or compact in GENERIC_LOCALITIES:
-        return False
-    return any(char.isalpha() for char in compact) and len(compact) >= 3
+def _provider_error_status(
+    exc: Exception,
+    api_key: str | None,
+) -> ProviderStatus:
+    status = classify_provider_exception(exc)
+    return ProviderStatus(
+        state=status.state,
+        source="",
+        transport=status.transport,
+        request_attempted=status.request_attempted,
+        http_status=status.http_status,
+        provider_code=status.provider_code,
+        detail=_sanitize_error(status.detail, api_key),
+    )
 
 
-def _clean_place_name(value: str) -> str:
-    value = (value or "").strip()
-    if not value or value.lower() == "unknown":
-        return ""
-    value = unicodedata.normalize("NFKD", value).encode("ASCII", "ignore").decode("ASCII")
-    aliases = {
-        "CDMX": "Ciudad de Mexico",
-        "Distrito Federal": "Ciudad de Mexico",
-        "Mexico City": "Ciudad de Mexico",
-    }
-    return aliases.get(value, value)
-
-
-def _split_lada_region(region: str) -> tuple[str, str]:
-    if not region or "," not in region:
-        return "", ""
-    city, state = [part.strip() for part in region.split(",", 1)]
-    return _clean_place_name(city), _clean_place_name(state)
-
-
+# --- CANONICAL LOCALITY ---
 def _set_canonical_locality(result: ScanResult, local_info: dict, has_ift_block: bool) -> None:
     city = _clean_place_name(local_info.get("city", ""))
     state = _clean_place_name(local_info.get("state", ""))
@@ -692,231 +460,47 @@ async def _call_maybe_async(fn, *args, session):
     return await asyncio.to_thread(fn, *args)
 
 
-_NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-_NOMINATIM_HEADERS = {"User-Agent": "MeXicOSINT/2.5.3 (OSINT research)"}
-
-
-def _nominatim_params(city_region: str) -> dict:
-    return {
-        "q": f"{city_region}, Mexico",
-        "format": "json",
-        "limit": 1,
-        "countrycodes": "mx"
-    }
-
-
-@lru_cache(maxsize=256)
-def _nominatim_sync_cached(city_region: str):
-    try:
-        r = _SESSION.get(_NOMINATIM_URL, params=_nominatim_params(city_region),
-                         headers=_NOMINATIM_HEADERS, timeout=10)
-        data = r.json()
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"]), data[0].get("display_name", "")
-    except Exception:
-        pass
-    return None, None, ""
-
-
-def geocode_nominatim(city_region):
-    if not _is_concrete_locality(city_region):
-        return None, None, ""
-    if DUMMY_MODE:
-        return None, None, ""
-    return _nominatim_sync_cached(city_region)
-
-
-_NOMINATIM_ASYNC_CACHE: dict = {}
-
-
-async def _nominatim_async(session, city_region: str):
-    if not _is_concrete_locality(city_region):
-        return None, None, ""
-    if city_region in _NOMINATIM_ASYNC_CACHE:
-        return _NOMINATIM_ASYNC_CACHE[city_region]
-    result = (None, None, "")
-    try:
-        async with session.get(
-            _NOMINATIM_URL,
-            params=_nominatim_params(city_region),
-            headers=_NOMINATIM_HEADERS,
-            timeout=aiohttp.ClientTimeout(total=10),
-        ) as r:
-            data = await r.json(content_type=None)
-            if data:
-                result = (float(data[0]["lat"]), float(data[0]["lon"]), data[0].get("display_name", ""))
-    except Exception:
-        pass
-    _NOMINATIM_ASYNC_CACHE[city_region] = result
-    return result
-
-
-geocode_nominatim.async_impl = _nominatim_async
-
-
-# --- API CALLS ---
-_ABSTRACT_INTEL_URL = "https://phoneintelligence.abstractapi.com/v1/"
-_NUMVERIFY_URL = "https://apilayer.net/api/validate"
-
-
-def abstract_phone_intelligence_lookup(e164, api_key):
-    if DUMMY_MODE:
+# --- API CALLS (compatibility wrappers over provider classes) ---
+def abstract_phone_intelligence_lookup(
+    e164, api_key, settings: ScanSettings | None = None
+):
+    settings = settings or ScanSettings()
+    if settings.dummy_mode:
         return dict(SAMPLE_ABSTRACT_INTEL)
-
-    params = {"api_key": api_key, "phone": e164}
-
-    try:
-        r = _SESSION.get(_ABSTRACT_INTEL_URL, params=params, timeout=15)
-        if r.status_code == 200:
-            data = r.json()
-            if "phone_number" in data or "phone" in data or "format" in data:
-                return data
-    except requests.RequestException as e:
-        status = getattr(e.response, 'status_code', 'N/A') if hasattr(e, 'response') else 'N/A'
-        text = getattr(e.response, 'text', 'N/A')[:200] if hasattr(e, 'response') else 'N/A'
-        raise Exception(f"Abstract Phone Intelligence API: HTTP {status} - {text} - {e}")
-
-    raise Exception("Abstract Phone Intelligence API: endpoint fallo (sin respuesta valida)")
+    return AbstractPhoneIntelligenceProvider(
+        api_key,
+        timeout=settings.default_timeout,
+        session=settings.session,
+    ).lookup(e164)
 
 
 async def _abstract_intel_async(session, e164, api_key):
-    params = {"api_key": api_key, "phone": e164}
-    try:
-        async with session.get(
-            _ABSTRACT_INTEL_URL, params=params, timeout=aiohttp.ClientTimeout(total=15)
-        ) as r:
-            if r.status == 200:
-                data = await r.json(content_type=None)
-                if "phone_number" in data or "phone" in data or "format" in data:
-                    return data
-            raise Exception(f"Abstract Phone Intelligence API: HTTP {r.status}")
-    except aiohttp.ClientError as e:
-        raise Exception(f"Abstract Phone Intelligence API: {e}")
+    provider = AbstractPhoneIntelligenceProvider(api_key)
+    return await provider.alookup(session, e164)
 
 
 abstract_phone_intelligence_lookup.async_impl = _abstract_intel_async
 
 
-def numverify_lookup(e164, api_key):
-    if DUMMY_MODE:
+def numverify_lookup(
+    e164, api_key, settings: ScanSettings | None = None
+):
+    settings = settings or ScanSettings()
+    if settings.dummy_mode:
         return dict(SAMPLE_NUMVERIFY)
-
-    number_clean = e164.replace("+", "")
-    params = {
-        "access_key": api_key,
-        "number": number_clean,
-        "format": 1
-    }
-    r = _SESSION.get(_NUMVERIFY_URL, params=params, timeout=15)
-    if r.status_code != 200:
-        raise Exception(f"Numverify HTTP {r.status_code}: {r.text}")
-    data = r.json()
-    if data.get("error"):
-        err_info = data.get("error", {})
-        raise Exception(f"Numverify API Error: {err_info.get('info', 'Unknown')}")
-    return data
+    return NumVerifyProvider(
+        api_key,
+        timeout=settings.default_timeout,
+        session=settings.session,
+    ).lookup(e164)
 
 
 async def _numverify_async(session, e164, api_key):
-    params = {
-        "access_key": api_key,
-        "number": e164.replace("+", ""),
-        "format": 1
-    }
-    async with session.get(
-        _NUMVERIFY_URL, params=params, timeout=aiohttp.ClientTimeout(total=15)
-    ) as r:
-        if r.status != 200:
-            raise Exception(f"Numverify HTTP {r.status}: {await r.text()}")
-        data = await r.json(content_type=None)
-    if data.get("error"):
-        err_info = data.get("error", {})
-        raise Exception(f"Numverify API Error: {err_info.get('info', 'Unknown')}")
-    return data
+    provider = NumVerifyProvider(api_key)
+    return await provider.alookup(session, e164)
 
 
 numverify_lookup.async_impl = _numverify_async
-
-
-# --- PARSERS (return structured data) ---
-def parse_abstract(data):
-    location = None
-    country = None
-    carrier = None
-    line_type = None
-    valid = None
-    risk_level = None
-
-    if "phone_number" in data:
-        # Phone Intelligence nested schema
-        phone_validation = data.get("phone_validation", {})
-        valid = phone_validation.get("is_valid")
-        phone_format = data.get("phone_format", {})
-        phone_location = data.get("phone_location", {})
-        location = phone_location.get("city") or phone_location.get("region")
-        country = phone_location.get("country_name")
-        phone_carrier = data.get("phone_carrier", {})
-        carrier = phone_carrier.get("name")
-        line_type = phone_carrier.get("line_type")
-        risk = data.get("phone_risk", {})
-        risk_level = risk.get("risk_level")
-        return {
-            "product": "Phone Intelligence",
-            "valid": valid,
-            "international": phone_format.get("international"),
-            "national": phone_format.get("national"),
-            "country": country,
-            "location": location,
-            "carrier": carrier,
-            "line_type": line_type,
-            "risk_level": risk_level,
-            "raw": data
-        }
-
-    valid = data.get("valid", data.get("is_valid"))
-    if "phone" in data:
-        return {
-            "product": "Phone Validation",
-            "valid": valid,
-            "phone": data.get("phone"),
-            "country": data.get("country_name", data.get("country")),
-            "location": data.get("location"),
-            "carrier": data.get("carrier"),
-            "line_type": data.get("type"),
-            "risk_level": None,
-            "raw": data
-        }
-
-    if "format" in data:
-        fmt = data.get("format", {})
-        country = data.get("country", {})
-        return {
-            "product": "Phone Validation",
-            "valid": valid,
-            "international": fmt.get("international"),
-            "national": fmt.get("local", fmt.get("national")),
-            "country": country.get("name"),
-            "location": data.get("location"),
-            "carrier": data.get("carrier"),
-            "line_type": data.get("type"),
-            "risk_level": None,
-            "raw": data
-        }
-
-    return {"product": "Desconocido", "raw": data}
-
-
-def parse_numverify(data):
-    return {
-        "valid": data.get("valid"),
-        "local_format": data.get("local_format"),
-        "international_format": data.get("international_format"),
-        "country": data.get("country_name"),
-        "location": data.get("location"),
-        "carrier": data.get("carrier"),
-        "line_type": data.get("line_type"),
-        "raw": data
-    }
 
 
 def _normalize_city(city: str) -> str:
@@ -974,289 +558,6 @@ def run_consensus(result: ScanResult):
         result.evidence_state = decision.state
 
 
-# --- MAP GENERATION ---
-def generate_map(result: ScanResult):
-    if not result.latitude or not result.longitude:
-        return ""
-    try:
-        import folium
-        _ensure_output_dirs()
-        m = folium.Map(location=[result.latitude, result.longitude], zoom_start=13)
-        folium.Marker(
-            [result.latitude, result.longitude],
-            popup=f"{result.e164}<br>{result.consensus_city}",
-            tooltip="Centro aproximado de la localidad"
-        ).add_to(m)
-        folium.Circle(
-            [result.latitude, result.longitude],
-            radius=5000,
-            popup="Area aproximada",
-            color="red",
-            fill=True,
-            fill_opacity=0.1
-        ).add_to(m)
-        safe_num = re.sub(r"[^0-9]", "", result.e164)
-        path = MAP_DIR / f"mexicosint_map_{safe_num}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-        m.save(str(path))
-        return str(path)
-    except Exception as e:
-        result.errors.append(f"Map generation: {e}")
-        return ""
-
-
-# --- REPORT GENERATION ---
-# FIX #7: Clean report excludes internal report_path and report_hash fields
-def save_report(result: ScanResult):
-    try:
-        _ensure_output_dirs()
-        safe_num = re.sub(r"[^0-9]", "", result.e164) or "unknown"
-        path = REPORT_DIR / f"mexicosint_report_{safe_num}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        # Use to_report_dict() which excludes report_path and report_hash
-        data = result.to_report_dict()
-        data["scan_end_time"] = _now_utc()
-        raw = json.dumps(data, sort_keys=True, default=str, ensure_ascii=False)
-        result.report_hash = _sha256(raw)
-        data["report_sha256"] = result.report_hash
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False, default=str)
-        return str(path)
-    except Exception as e:
-        result.errors.append(f"Report generation: {e}")
-        return ""
-
-
-# --- RICH PRINTERS ---
-def _rich_or_plain(rich_func, plain_func):
-    if RICH_AVAILABLE and sys.stdout.isatty():
-        try:
-            rich_func()
-            return
-        except Exception:
-            pass
-    plain_func()
-
-
-def rich_print_subscriber(result: ScanResult):
-    table = Table(title="📋 INFORMACION DEL SUSCRIPTOR", box=box.HEAVY_EDGE,
-                  title_style="bold cyan", border_style="bright_blue", show_lines=True)
-    table.add_column("Campo", style="bold yellow", width=28)
-    table.add_column("Valor", style="bold white", width=50)
-    table.add_row("Scan ID", result.scan_id)
-    table.add_row("Timestamp (UTC)", result.scan_timestamp)
-    table.add_row("MSISDN (E.164)", f"[bold]{result.e164}[/bold]")
-    table.add_row("Valido", "[green]SI[/green]" if result.valid else "[red]NO[/red]")
-    table.add_row("Region (phonenumbers)", result.region_phonenumbers or "—")
-    table.add_row("Region LADA (ref.)", result.lada_region or "—")
-    if result.ift_carrier:
-        table.add_row("Operadora (IFT oficial)", f"[bold green]{result.ift_carrier}[/bold green]")
-    if result.ift_modality:
-        table.add_row("Modalidad (IFT)", result.ift_modality)
-    if result.ift_fecha_asignacion:
-        table.add_row("Asignado (IFT)", result.ift_fecha_asignacion)
-    if result.ift_service_type:
-        table.add_row("Tipo de servicio (IFT)", f"[bold red]{result.ift_service_type}[/bold red]")
-    table.add_row("Operadora (Abstract)", result.abstract_carrier or "—")
-    table.add_row("Operadora (NumVerify)", result.numverify_carrier or "—")
-    table.add_row(
-        "Tipo de linea",
-        result.abstract_line_type
-        if result.abstract_line_type not in ("", None, "unknown", "UNKNOWN")
-        else result.numverify_line_type
-        if result.numverify_line_type not in ("", None, "unknown", "UNKNOWN")
-        else result.local_line_type or "—"
-    )
-    _console.print()
-    _console.print(table)
-
-
-def plain_print_subscriber(result: ScanResult):
-    print("\n[+] INFORMACION DEL SUSCRIPTOR:")
-    print("-" * 60)
-    print(f"    Scan ID:             {result.scan_id}")
-    print(f"    Timestamp (UTC):     {result.scan_timestamp}")
-    print(f"    MSISDN (E.164):      {result.e164}")
-    print(f"    Valido:              {'SI' if result.valid else 'NO'}")
-    print(f"    Region (phonenumbers): {result.region_phonenumbers or '—'}")
-    print(f"    Region LADA (ref.):  {result.lada_region or '—'}")
-    if result.ift_carrier:
-        print(f"    Operadora (IFT oficial): {result.ift_carrier}")
-    if result.ift_modality:
-        print(f"    Modalidad (IFT):     {result.ift_modality}")
-    if result.ift_fecha_asignacion:
-        print(f"    Asignado (IFT):      {result.ift_fecha_asignacion}")
-    if result.ift_service_type:
-        print(f"    Tipo de servicio (IFT): {result.ift_service_type}")
-    print(f"    Operadora (Abstract): {result.abstract_carrier or '—'}")
-    print(f"    Operadora (NumVerify): {result.numverify_carrier or '—'}")
-    print(f"    Tipo de linea:       {result.abstract_line_type or result.numverify_line_type or '—'}")
-
-
-def rich_print_api_results(result: ScanResult):
-    table = Table(title="🌐 RESULTADOS DE APIs", box=box.ROUNDED,
-                  border_style="green", show_lines=True)
-    table.add_column("Fuente", style="bold white", width=18)
-    table.add_column("Valido", width=10)
-    table.add_column("Ubicacion", style="green", width=25)
-    table.add_column("Operadora", width=18)
-    table.add_column("Tipo", width=12)
-
-    if result.abstract_data:
-        table.add_row(
-            "AbstractAPI",
-            str(result.abstract_data.get("valid", "N/A")),
-            result.abstract_location or "—",
-            result.abstract_carrier or "—",
-            result.abstract_line_type or "—"
-        )
-    if result.numverify_data:
-        table.add_row(
-            "NumVerify",
-            str(result.numverify_data.get("valid", "N/A")),
-            result.numverify_location or "—",
-            result.numverify_carrier or "—",
-            result.numverify_line_type or "—"
-        )
-    if result.ipqualityscore_data:
-        table.add_row(
-            "IPQualityScore",
-            str(result.ipqualityscore_data.get("valid", "N/A")),
-            result.ipqualityscore_data.get("city") or "—",
-            result.ipqualityscore_data.get("carrier") or "—",
-            result.ipqualityscore_data.get("line_type") or "—",
-        )
-    _console.print()
-    _console.print(table)
-
-
-def plain_print_api_results(result: ScanResult):
-    print("\n[+] RESULTADOS DE APIs:")
-    print("-" * 60)
-    if result.abstract_data:
-        print(f"    [AbstractAPI] Valido: {result.abstract_data.get('valid', 'N/A')}, "
-              f"Ubicacion: {result.abstract_location or '—'}, "
-              f"Operadora: {result.abstract_carrier or '—'}, "
-              f"Tipo: {result.abstract_line_type or '—'}")
-    if result.numverify_data:
-        print(f"    [NumVerify]   Valido: {result.numverify_data.get('valid', 'N/A')}, "
-              f"Ubicacion: {result.numverify_location or '—'}, "
-              f"Operadora: {result.numverify_carrier or '—'}, "
-              f"Tipo: {result.numverify_line_type or '—'}")
-    if result.ipqualityscore_data:
-        print(f"    [IPQualityScore] Valido: {result.ipqualityscore_data.get('valid', 'N/A')}, "
-              f"Activo: {result.ipqualityscore_data.get('active', 'N/A')}, "
-              f"Riesgo: {result.ipqualityscore_data.get('risk_score', 'N/A')}, "
-              f"Abuso reciente: {result.ipqualityscore_data.get('abuse_recent', 'N/A')}")
-
-
-def rich_print_consensus(result: ScanResult):
-    if not result.all_votes:
-        return
-    table = Table(title="🗳️  EVIDENCIA DE LOCALIDAD", box=box.ROUNDED,
-                  border_style="cyan", show_lines=True)
-    table.add_column("Fuente", style="bold white", width=20)
-    table.add_column("Ciudad / Region", style="green", width=30)
-    for v in result.all_votes:
-        table.add_row(v.source, v.city)
-    table.add_row("[bold green]ESTADO[/bold green]",
-                  f"[bold green]{result.evidence_state}[/bold green]")
-    table.add_row("[bold green]LOCALIDAD[/bold green]",
-                  f"[bold green]{result.consensus_city or '—'}[/bold green]")
-    _console.print()
-    _console.print(table)
-
-
-def plain_print_consensus(result: ScanResult):
-    if not result.all_votes:
-        return
-    print("\n[+] EVIDENCIA DE LOCALIDAD:")
-    print("-" * 60)
-    for v in result.all_votes:
-        print(f"    {v.source:18} {v.city}")
-    print(f"    Estado:         {result.evidence_state}")
-    print(f"    Localidad base: {result.consensus_city or '—'}")
-
-
-def rich_print_geo(result: ScanResult):
-    table = Table(title="🗺️  GEOLOCALIZACION APROXIMADA", box=box.ROUNDED,
-                  border_style="magenta", show_lines=True)
-    table.add_column("Campo", style="bold yellow", width=28)
-    table.add_column("Valor", style="bold white", width=50)
-    table.add_row("Localidad base", result.consensus_city or "—")
-    table.add_row("Latitud", f"{result.latitude:.5f}" if result.latitude else "—")
-    table.add_row("Longitud", f"{result.longitude:.5f}" if result.longitude else "—")
-    table.add_row("OpenCage lat/lon",
-                  f"{result.opencage_latitude:.5f}, {result.opencage_longitude:.5f}"
-                  if result.opencage_latitude and result.opencage_longitude else "—")
-    table.add_row("OpenCage address",
-                  (result.opencage_address[:70] + "...") if result.opencage_address else "—")
-    table.add_row("Geoapify lat/lon",
-                  f"{result.geoapify_latitude:.5f}, {result.geoapify_longitude:.5f}"
-                  if result.geoapify_latitude and result.geoapify_longitude else "—")
-    table.add_row("Geoapify address",
-                  (result.geoapify_address[:70] + "...") if result.geoapify_address else "—")
-    table.add_row("Direccion (Nominatim)", (result.nominatim_address[:70] + "...") if result.nominatim_address else "—")
-    _console.print()
-    _console.print(table)
-    _console.print("[dim]Nota: localidad de numeracion; NO GPS en tiempo real ni ubicacion del suscriptor.[/dim]")
-
-
-def plain_print_geo(result: ScanResult):
-    print("\n[+] GEOLOCALIZACION APROXIMADA:")
-    print("-" * 60)
-    print(f"    Localidad base:  {result.consensus_city or '—'}")
-    print(f"    Latitud:         {result.latitude:.5f}" if result.latitude else "    Latitud:         —")
-    print(f"    Longitud:        {result.longitude:.5f}" if result.longitude else "    Longitud:        —")
-    if result.opencage_latitude and result.opencage_longitude:
-        print(f"    OpenCage lat/lon: {result.opencage_latitude:.5f}, {result.opencage_longitude:.5f}")
-    if result.opencage_address:
-        print(f"    OpenCage address: {result.opencage_address[:70]}")
-    if result.geoapify_latitude and result.geoapify_longitude:
-        print(f"    Geoapify lat/lon: {result.geoapify_latitude:.5f}, {result.geoapify_longitude:.5f}")
-    if result.geoapify_address:
-        print(f"    Geoapify address: {result.geoapify_address[:70]}")
-    if result.nominatim_address:
-        print(f"    Direccion (Nominatim): {result.nominatim_address[:70]}")
-    print("    Nota: localidad de numeracion; NO GPS en tiempo real ni ubicacion del suscriptor.")
-
-
-def rich_print_osint_links(links: dict):
-    table = Table(title="🔗 ENLACES DE INVESTIGACION (OSINT)", box=box.ROUNDED,
-                  border_style="blue", show_lines=True)
-    table.add_column("Plataforma", style="bold white", width=22)
-    table.add_column("URL", style="cyan")
-    for name, url in links.items():
-        table.add_row(name, url)
-    _console.print()
-    _console.print(table)
-
-
-def plain_print_osint_links(links: dict):
-    print("\n[+] ENLACES DE INVESTIGACION (OSINT):")
-    print("-" * 60)
-    for name, url in links.items():
-        print(f"    {name:22} {url}")
-
-
-def rich_print_report(result: ScanResult):
-    table = Table(title="📁 REPORTE EXPORTADO", box=box.ROUNDED,
-                  border_style="yellow", show_lines=True)
-    table.add_column("Campo", style="bold yellow", width=28)
-    table.add_column("Valor", style="bold white", width=50)
-    table.add_row("Reporte JSON", result.report_path or "—")
-    table.add_row("Mapa HTML", result.map_path or "—")
-    table.add_row("Hash SHA-256", result.report_hash or "—")
-    _console.print()
-    _console.print(table)
-
-
-def plain_print_report(result: ScanResult):
-    print("\n[+] REPORTE EXPORTADO:")
-    print("-" * 60)
-    print(f"    Reporte JSON: {result.report_path or '—'}")
-    print(f"    Mapa HTML:    {result.map_path or '—'}")
-    print(f"    Hash SHA-256: {result.report_hash or '—'}")
-
-
 # --- OSINT LINKS ---
 # FIX #9: Only include links that genuinely perform phone number lookups
 def generate_osint_links(e164):
@@ -1289,45 +590,85 @@ def generate_osint_links(e164):
 
 
 async def _abstract_job(result, normalized, e164, config, active, session, api_results):
-    if "abstract_phone_intelligence" not in active:
+    service = "abstract_phone_intelligence"
+    if service not in active:
         _trace_provider(result, "AbstractAPI", "skipped", normalized)
         return
+    key = _get_api_key(config, service)
     try:
         _trace_provider(result, "AbstractAPI", "live_request", normalized)
         api_results["abstract_intel"] = await _call_maybe_async(
             abstract_phone_intelligence_lookup,
             e164,
-            _get_api_key(config, "abstract_phone_intelligence"),
+            key,
             session=session,
         )
-    except Exception as e:
+        _set_provider_state(
+            result,
+            service,
+            ProviderStatus(
+                state=ProviderState.REQUEST_SUCCESS,
+                transport="live_request",
+                request_attempted=True,
+            ),
+        )
+    except Exception as exc:
         api_results["abstract_intel"] = None
-        key = _get_api_key(config, "abstract_phone_intelligence")
-        result.errors.append(_sanitize_error(f"abstract_intel: {e}", key))
-        _trace_provider(result, "AbstractAPI", "error", normalized, note=type(e).__name__)
+        status = _provider_error_status(exc, key)
+        _set_provider_state(result, service, status)
+        result.errors.append(f"abstract_intel: {status.detail}")
+        _trace_provider(
+            result,
+            "AbstractAPI",
+            str(status.state),
+            normalized,
+            note=type(exc).__name__,
+        )
 
 
 async def _numverify_job(result, normalized, e164, config, active, session, api_results):
-    if "numverify" not in active:
+    service = "numverify"
+    if service not in active:
         _trace_provider(result, "NumVerify", "skipped", normalized)
         return
+    key = _get_api_key(config, service)
     try:
         _trace_provider(result, "NumVerify", "live_request", normalized)
         api_results["numverify"] = await _call_maybe_async(
-            numverify_lookup, e164, _get_api_key(config, "numverify"), session=session
+            numverify_lookup,
+            e164,
+            key,
+            session=session,
         )
-    except Exception as e:
+        _set_provider_state(
+            result,
+            service,
+            ProviderStatus(
+                state=ProviderState.REQUEST_SUCCESS,
+                transport="live_request",
+                request_attempted=True,
+            ),
+        )
+    except Exception as exc:
         api_results["numverify"] = None
-        key = _get_api_key(config, "numverify")
-        result.errors.append(_sanitize_error(f"numverify: {e}", key))
-        _trace_provider(result, "NumVerify", "error", normalized, note=type(e).__name__)
+        status = _provider_error_status(exc, key)
+        _set_provider_state(result, service, status)
+        result.errors.append(f"numverify: {status.detail}")
+        _trace_provider(
+            result,
+            "NumVerify",
+            str(status.state),
+            normalized,
+            note=type(exc).__name__,
+        )
 
 
-async def _ipqs_job(result, normalized, config, active, session):
-    if "ipqualityscore" not in active:
+async def _ipqs_job(result, normalized, config, active, session, settings):
+    service = "ipqualityscore"
+    if service not in active:
         _trace_provider(result, "IPQualityScore", "skipped", normalized)
         return
-    key = _get_api_key(config, "ipqualityscore")
+    key = _get_api_key(config, service)
     try:
         _trace_provider(result, "IPQualityScore", "live_request", normalized)
         provider = IPQualityScoreProvider(key)
@@ -1338,46 +679,139 @@ async def _ipqs_job(result, normalized, config, active, session):
             reputation = await asyncio.to_thread(provider.lookup, normalized)
         if reputation:
             result.ipqualityscore_data = asdict(reputation)
-    except Exception as e:
-        result.errors.append(_sanitize_error(f"ipqualityscore: {e}", key))
-        _trace_provider(result, "IPQualityScore", "error", normalized, note=type(e).__name__)
-
-
-async def _opencage_job(result, normalized, geo_target, config, session):
-    key = _get_api_key(config, "opencage")
-    try:
-        locality, status = await _lookup_cached_geocoder_async(
-            OpenCageProvider(key), session, geo_target
+            state = ProviderState.REQUEST_SUCCESS
+        else:
+            state = ProviderState.NO_RESULT
+        _set_provider_state(
+            result,
+            service,
+            ProviderStatus(
+                state=state,
+                transport="live_request",
+                request_attempted=True,
+            ),
         )
-        _trace_provider(result, "OpenCage", status, normalized, locality_query=geo_target)
+    except Exception as exc:
+        status = _provider_error_status(exc, key)
+        _set_provider_state(result, service, status)
+        result.errors.append(f"ipqualityscore: {status.detail}")
+        _trace_provider(
+            result,
+            "IPQualityScore",
+            str(status.state),
+            normalized,
+            note=type(exc).__name__,
+        )
+
+
+async def _opencage_job(result, normalized, geo_target, config, session, settings):
+    service = "opencage"
+    key = _get_api_key(config, service)
+    try:
+        locality, transport = await _lookup_cached_geocoder_async(
+            OpenCageProvider(key),
+            session,
+            geo_target,
+        )
+        state = (
+            ProviderState.REQUEST_SUCCESS
+            if locality
+            else ProviderState.NO_RESULT
+        )
+        _set_provider_state(
+            result,
+            service,
+            ProviderStatus(
+                state=state,
+                transport=transport,
+                request_attempted=transport != "cache_hit",
+            ),
+        )
+        _trace_provider(
+            result,
+            "OpenCage",
+            str(state),
+            normalized,
+            locality_query=geo_target,
+            note=transport,
+        )
         if locality:
             result.opencage_data = asdict(locality)
             result.opencage_latitude = locality.latitude
             result.opencage_longitude = locality.longitude
             result.opencage_address = locality.formatted_address
-    except Exception as e:
-        result.errors.append(_sanitize_error(f"opencage: {e}", key))
-        _trace_provider(result, "OpenCage", "error", normalized, locality_query=geo_target, note=type(e).__name__)
-
-
-async def _geoapify_job(result, normalized, geo_target, config, session):
-    key = _get_api_key(config, "geoapify")
-    try:
-        locality, status = await _lookup_cached_geocoder_async(
-            GeoapifyProvider(key), session, geo_target
+    except Exception as exc:
+        status = _provider_error_status(exc, key)
+        _set_provider_state(result, service, status)
+        result.errors.append(f"opencage: {status.detail}")
+        _trace_provider(
+            result,
+            "OpenCage",
+            str(status.state),
+            normalized,
+            locality_query=geo_target,
+            note=type(exc).__name__,
         )
-        _trace_provider(result, "Geoapify", status, normalized, locality_query=geo_target)
+
+
+async def _geoapify_job(result, normalized, geo_target, config, session, settings):
+    service = "geoapify"
+    key = _get_api_key(config, service)
+    try:
+        locality, transport = await _lookup_cached_geocoder_async(
+            GeoapifyProvider(key),
+            session,
+            geo_target,
+        )
+        state = (
+            ProviderState.REQUEST_SUCCESS
+            if locality
+            else ProviderState.NO_RESULT
+        )
+        _set_provider_state(
+            result,
+            service,
+            ProviderStatus(
+                state=state,
+                transport=transport,
+                request_attempted=transport != "cache_hit",
+            ),
+        )
+        _trace_provider(
+            result,
+            "Geoapify",
+            str(state),
+            normalized,
+            locality_query=geo_target,
+            note=transport,
+        )
         if locality:
             result.geoapify_data = asdict(locality)
             result.geoapify_latitude = locality.latitude
             result.geoapify_longitude = locality.longitude
             result.geoapify_address = locality.formatted_address
-    except Exception as e:
-        result.errors.append(_sanitize_error(f"geoapify: {e}", key))
-        _trace_provider(result, "Geoapify", "error", normalized, locality_query=geo_target, note=type(e).__name__)
+    except Exception as exc:
+        status = _provider_error_status(exc, key)
+        _set_provider_state(result, service, status)
+        result.errors.append(f"geoapify: {status.detail}")
+        _trace_provider(
+            result,
+            "Geoapify",
+            str(status.state),
+            normalized,
+            locality_query=geo_target,
+            note=type(exc).__name__,
+        )
 
 
-async def _run_network_phase(result, normalized, e164, config, active):
+async def _run_network_phase(
+    result,
+    normalized,
+    e164,
+    config,
+    active,
+    settings: ScanSettings,
+):
     """Phone-API fan-out, parsing, consensus and geocoding.
 
     Phone APIs (Abstract, NumVerify, IPQualityScore) run concurrently, then
@@ -1385,22 +819,50 @@ async def _run_network_phase(result, normalized, e164, config, active):
     """
     api_results = {}
 
-    if DUMMY_MODE:
+    if settings.dummy_mode:
         if "abstract_phone_intelligence" in active:
             _trace_provider(result, "AbstractAPI", "fixture", normalized)
             api_results["abstract_intel"] = abstract_phone_intelligence_lookup(
-                e164, _get_api_key(config, "abstract_phone_intelligence")
+                e164,
+                _get_api_key(config, "abstract_phone_intelligence"),
+                settings,
+            )
+            _set_provider_state(
+                result,
+                "abstract_phone_intelligence",
+                ProviderStatus(
+                    state=ProviderState.REQUEST_SUCCESS,
+                    transport="fixture",
+                ),
             )
         else:
             _trace_provider(result, "AbstractAPI", "skipped", normalized)
         if "numverify" in active:
             _trace_provider(result, "NumVerify", "fixture", normalized)
-            api_results["numverify"] = numverify_lookup(e164, _get_api_key(config, "numverify"))
+            api_results["numverify"] = numverify_lookup(
+                e164, _get_api_key(config, "numverify"), settings
+            )
+            _set_provider_state(
+                result,
+                "numverify",
+                ProviderStatus(
+                    state=ProviderState.REQUEST_SUCCESS,
+                    transport="fixture",
+                ),
+            )
         else:
             _trace_provider(result, "NumVerify", "skipped", normalized)
         if "ipqualityscore" in active:
             _trace_provider(result, "IPQualityScore", "fixture", normalized)
             result.ipqualityscore_data = dict(SAMPLE_IPQUALITYSCORE)
+            _set_provider_state(
+                result,
+                "ipqualityscore",
+                ProviderStatus(
+                    state=ProviderState.REQUEST_SUCCESS,
+                    transport="fixture",
+                ),
+            )
         else:
             _trace_provider(result, "IPQualityScore", "skipped", normalized)
     else:
@@ -1408,7 +870,7 @@ async def _run_network_phase(result, normalized, e164, config, active):
             await asyncio.gather(
                 _abstract_job(result, normalized, e164, config, active, session, api_results),
                 _numverify_job(result, normalized, e164, config, active, session, api_results),
-                _ipqs_job(result, normalized, config, active, session),
+                _ipqs_job(result, normalized, config, active, session, settings),
             )
 
     # Process Abstract Phone Intelligence results
@@ -1440,26 +902,85 @@ async def _run_network_phase(result, normalized, e164, config, active):
                 break
 
     if not geo_target or not _is_concrete_locality(geo_target):
+        result.geocoding_source = "unavailable"
+        _set_provider_state(
+            result,
+            "nominatim",
+            ProviderStatus(
+                state=ProviderState.NOT_REQUESTED,
+                detail="no_concrete_locality",
+            ),
+        )
         _trace_provider(result, "OpenCage", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
         _trace_provider(result, "Geoapify", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
         _trace_provider(result, "Nominatim", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
     elif geo_target:
-        if DUMMY_MODE:
+        if settings.dummy_mode:
             print("\n[*] Geocodificando localidad...")
             print("    [!] Omitido en modo dummy para evitar llamadas de red.")
-            _trace_provider(result, "OpenCage", "fixture", normalized, locality_query=geo_target)
-            _trace_provider(result, "Geoapify", "fixture", normalized, locality_query=geo_target)
-            result.geoapify_data = dict(SAMPLE_GEOAPIFY)
+            if "opencage" in active:
+                _trace_provider(result, "OpenCage", "fixture", normalized, locality_query=geo_target)
+                _set_provider_state(
+                    result,
+                    "opencage",
+                    ProviderStatus(
+                        state=ProviderState.REQUEST_SUCCESS,
+                        transport="fixture",
+                    ),
+                )
+            else:
+                _trace_provider(result, "OpenCage", "skipped", normalized, locality_query=geo_target)
+            if "geoapify" in active:
+                _trace_provider(result, "Geoapify", "fixture", normalized, locality_query=geo_target)
+                result.geoapify_data = dict(SAMPLE_GEOAPIFY)
+                _set_provider_state(
+                    result,
+                    "geoapify",
+                    ProviderStatus(
+                        state=ProviderState.REQUEST_SUCCESS,
+                        transport="fixture",
+                    ),
+                )
+            else:
+                _trace_provider(result, "Geoapify", "skipped", normalized, locality_query=geo_target)
+            _set_provider_state(
+                result,
+                "nominatim",
+                ProviderStatus(
+                    state=ProviderState.NOT_REQUESTED,
+                    detail="dummy_mode",
+                ),
+            )
+            _trace_provider(result, "Nominatim", "skipped", normalized, locality_query=geo_target)
+            result.geocoding_source = "fixture"
         else:
             print("\n[*] Geocodificando localidad de numeracion (OpenCage y Geoapify en paralelo, Nominatim final)...")
             async with aiohttp.ClientSession() as session:
                 jobs = []
                 if "opencage" in active:
-                    jobs.append(_opencage_job(result, normalized, geo_target, config, session))
+                    jobs.append(
+                        _opencage_job(
+                            result,
+                            normalized,
+                            geo_target,
+                            config,
+                            session,
+                            settings,
+                        )
+                    )
                 else:
                     _trace_provider(result, "OpenCage", "skipped", normalized, locality_query=geo_target)
                 if "geoapify" in active:
-                    jobs.append(_geoapify_job(result, normalized, geo_target, config, session))
+                    jobs.append(
+                        _geoapify_job(
+                            result,
+                            normalized,
+                            geo_target,
+                            config,
+                            session,
+                            settings,
+                        )
+                    )
                 else:
                     _trace_provider(result, "Geoapify", "skipped", normalized, locality_query=geo_target)
                 if jobs:
@@ -1468,23 +989,92 @@ async def _run_network_phase(result, normalized, e164, config, active):
                 # OpenCage stays primary; Geoapify is the backup.
                 if result.opencage_latitude and result.opencage_longitude:
                     result.latitude, result.longitude = result.opencage_latitude, result.opencage_longitude
+                    result.geocoding_source = "OpenCage"
                     print("    [OpenCage] OK")
                 elif result.geoapify_latitude and result.geoapify_longitude:
                     result.latitude, result.longitude = result.geoapify_latitude, result.geoapify_longitude
+                    result.geocoding_source = "Geoapify"
                     print("    [Geoapify] OK")
 
                 if not result.latitude or not result.longitude:
                     print("    [OpenCage/Geoapify] Sin key/resultado, usando Nominatim...")
                     _trace_provider(result, "Nominatim", "live_request", normalized, locality_query=geo_target)
-                    result.latitude, result.longitude, result.nominatim_address = await _call_maybe_async(
-                        geocode_nominatim, geo_target, session=session
-                    )
+                    try:
+                        result.latitude, result.longitude, result.nominatim_address = await _call_maybe_async(
+                            geocode_nominatim,
+                            geo_target,
+                            session=session,
+                        )
+                    except Exception as exc:
+                        result.geocoding_source = "unavailable"
+                        status = _provider_error_status(exc, None)
+                        _set_provider_state(result, "nominatim", status)
+                        result.errors.append(f"nominatim: {status.detail}")
+                        _trace_provider(
+                            result,
+                            "Nominatim",
+                            str(status.state),
+                            normalized,
+                            locality_query=geo_target,
+                            note=type(exc).__name__,
+                        )
+                    else:
+                        if result.latitude and result.longitude:
+                            result.geocoding_source = "Nominatim"
+                            _set_provider_state(
+                                result,
+                                "nominatim",
+                                ProviderStatus(
+                                    state=ProviderState.REQUEST_SUCCESS,
+                                    transport="live_request",
+                                    request_attempted=True,
+                                ),
+                            )
+                            _trace_provider(
+                                result,
+                                "Nominatim",
+                                str(ProviderState.REQUEST_SUCCESS),
+                                normalized,
+                                locality_query=geo_target,
+                            )
+                        else:
+                            result.geocoding_source = "unavailable"
+                            _set_provider_state(
+                                result,
+                                "nominatim",
+                                ProviderStatus(
+                                    state=ProviderState.NO_RESULT,
+                                    transport="live_request",
+                                    request_attempted=True,
+                                ),
+                            )
+                            _trace_provider(
+                                result,
+                                "Nominatim",
+                                str(ProviderState.NO_RESULT),
+                                normalized,
+                                locality_query=geo_target,
+                            )
                 else:
+                    _set_provider_state(
+                        result,
+                        "nominatim",
+                        ProviderStatus(
+                            state=ProviderState.NOT_REQUESTED,
+                            detail="another_geocoder_succeeded",
+                        ),
+                    )
                     _trace_provider(result, "Nominatim", "skipped", normalized, locality_query=geo_target)
 
 
 # --- MAIN ---
-def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
+def run_phone_scan(
+    raw: str,
+    config: dict,
+    active: list,
+    settings: ScanSettings | None = None,
+) -> ScanResult:
+    settings = settings or ScanSettings()
     result = ScanResult()
     result.scan_id = f"MX-{uuid.uuid4().hex[:10].upper()}"
     result.raw_input = raw
@@ -1532,60 +1122,19 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
         else ""
     )
     result.osint_links = generate_osint_links(e164)
+    _initialize_provider_states(result, config, active, settings)
 
     # API calls + geocoding (concurrent network phases)
-    asyncio.run(_run_network_phase(result, normalized, e164, config, active))
+    asyncio.run(_run_network_phase(result, normalized, e164, config, active, settings))
 
     # Map
     if result.latitude and result.longitude:
-        result.map_path = generate_map(result)
+        result.map_path = generate_map(result, settings)
 
     # Report
-    result.report_path = save_report(result)
+    result.report_path = save_report(result, settings)
 
     return result
-
-
-def _section_break():
-    """Thin separator between output sections."""
-    if RICH_AVAILABLE:
-        _console.print(Rule(style="dim"))
-    else:
-        print("─" * 60)
-
-
-def print_results(result: ScanResult):
-    _rich_or_plain(
-        lambda: rich_print_subscriber(result),
-        lambda: plain_print_subscriber(result)
-    )
-    _section_break()
-    _rich_or_plain(
-        lambda: rich_print_osint_links(result.osint_links),
-        lambda: plain_print_osint_links(result.osint_links)
-    )
-    _section_break()
-    _rich_or_plain(
-        lambda: rich_print_api_results(result),
-        lambda: plain_print_api_results(result)
-    )
-    _section_break()
-    _rich_or_plain(
-        lambda: rich_print_consensus(result),
-        lambda: plain_print_consensus(result)
-    )
-    if result.consensus_city:
-        _section_break()
-        _rich_or_plain(
-            lambda: rich_print_geo(result),
-            lambda: plain_print_geo(result)
-        )
-    _section_break()
-    _rich_or_plain(
-        lambda: rich_print_report(result),
-        lambda: plain_print_report(result)
-    )
-    print("\n[!] Ubicacion = prefijo de numeracion, NO ubicacion GPS del telefono.")
 
 
 def main(argv=None):
@@ -1608,7 +1157,7 @@ def main(argv=None):
         skip_microvault = True
         args.remove("--no-microvault")
 
-    ScanSettings(dummy_mode=dummy_mode)
+    settings = ScanSettings(dummy_mode=dummy_mode, config_path=CONFIG_PATH)
 
     print_banner()
 
@@ -1626,13 +1175,17 @@ def main(argv=None):
     print(f"[+] Fecha/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    config = init_config(use_microvault=use_microvault, skip_microvault=skip_microvault)
-    active = check_keys(config)
+    config = init_config(
+        use_microvault=use_microvault,
+        skip_microvault=skip_microvault,
+        settings=settings,
+    )
+    active = check_keys(config, settings)
 
     if number:
         print(f"[+] Entrada cruda: {number}")
         print("=" * 60)
-        result = run_phone_scan(number, config, active)
+        result = run_phone_scan(number, config, active, settings)
         print_results(result)
 
     print("\n[*] Escaneo completado.")
