@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.5.5
+MeXicOSINT v2.5.7
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.5.6:
+  - MicroVault integration: API keys can be read from MicroVault (encrypted
+    vault) via Python import or CLI subprocess bridge (works with pipx)
+  - --microvault flag: explicit MicroVault connection (prompts for password)
+  - Key resolution order: env vars > MicroVault > JSON config (JSON optional)
+  - GPS geocoding fallback: tries LADA region, consensus city, phonenumbers
+    region when canonical locality query is empty or vague
+  - Cosmetic: unified Console instance, Rule separators, removed spacer rows,
+    compressed portability warning to single line
+  - Updated --help with current options and key resolution documentation
 
 Cambios v2.5.5:
   - Corregida fuga de API keys: errores de proveedores fallidos escribian
@@ -1552,12 +1563,17 @@ def print_results(result: ScanResult):
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
     dummy_mode = False
+    use_microvault = False
 
     if "--dummy-test" in args:
         dummy_mode = True
         args.remove("--dummy-test")
         print("\n[!] MODO DUMMY ACTIVADO: No se realizaran llamadas reales a las APIs.")
         print("    Se usaran datos de ejemplo. No se consumiran creditos.\n")
+
+    if "--microvault" in args:
+        use_microvault = True
+        args.remove("--microvault")
 
     ScanSettings(dummy_mode=dummy_mode)
 
@@ -1566,19 +1582,18 @@ def main(argv=None):
     number = args[0] if args else None
 
     if not number:
-        print("Uso: mexicosint <numero_mexicano>")
-        print("     mexicosint --dummy-test <numero_mexicano>")
-        print("Ejemplos:")
-        print("    mexicosint 5512345678")
-        print("    mexicosint +525512345678")
-        print("    mexicosint --set-key geoapify TU_KEY")
-        print("    mexicosint --list-keys")
+        print("Uso: mexicosint [opciones] <numero_mexicano>")
+        print("     mexicosint --microvault 5512345678")
+        print("     mexicosint --dummy-test 5512345678")
+        print("     mexicosint --set-key geoapify TU_KEY")
+        print("     mexicosint --list-keys")
+        print("     mexicosint --help")
         sys.exit(1)
 
     print(f"[+] Fecha/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    config = init_config()
+    config = init_config(use_microvault=use_microvault)
     active = check_keys(config)
 
     if number:

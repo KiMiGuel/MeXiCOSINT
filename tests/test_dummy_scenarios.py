@@ -101,7 +101,7 @@ def test_main_resets_dummy_mode_between_invocations(monkeypatch):
     states = []
 
     monkeypatch.setattr(app, "print_banner", lambda: None)
-    monkeypatch.setattr(app, "init_config", lambda: {})
+    monkeypatch.setattr(app, "init_config", lambda **kw: {})
     monkeypatch.setattr(app, "check_keys", lambda config: [])
     monkeypatch.setattr(app, "print_results", lambda result: None)
 

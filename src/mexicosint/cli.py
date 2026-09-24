@@ -10,9 +10,15 @@ EPILOG = """ejemplos:
   mexicosint 5512345678                  Escanea un numero mexicano
   mexicosint +525512345678               Formato internacional tambien funciona
   mexicosint --dummy-test 5512345678     Datos de prueba, sin llamadas a APIs
+  mexicosint --microvault 5512345678     Usa keys de MicroVault
   mexicosint --set-key geoapify TU_KEY   Guarda una API key
   mexicosint --list-keys                 Muestra keys guardadas (enmascaradas)
   mexicosint --config-path               Ruta del archivo de configuracion
+
+fuentes de API keys (en orden de prioridad):
+  1. Variables de entorno   MEXICOSINT_GEOAPIFY_API_KEY, etc.
+  2. MicroVault             --microvault (vault cifrado en ~/.microvault/)
+  3. Archivo JSON           ~/.mx_osint_config.json (opcional)
 
 servicios validos para --set-key:
   abstract (alias de abstract_phone_intelligence), numverify,
@@ -43,6 +49,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--dummy-test",
         action="store_true",
         help="Usa datos de prueba y evita llamadas reales a APIs.",
+    )
+    parser.add_argument(
+        "--microvault",
+        action="store_true",
+        help="Usa API keys desde MicroVault (vault cifrado, pide contraseña).",
     )
     parser.add_argument(
         "--set-key",
@@ -77,6 +88,8 @@ def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
     argv: list[str] = []
     if args.dummy_test:
         argv.append("--dummy-test")
+    if args.microvault:
+        argv.append("--microvault")
     if args.number:
         argv.append(args.number)
     return argv

@@ -52,38 +52,44 @@ MICROVAULT_SERVICES = {
     "ipqualityscore":              "ipqualityscore",
 }
 
-# Lazy-loaded MicroVault session (None = not attempted, False = unavailable)
-_mv_session = None
+# ── MicroVault service-name mappings ───────────────────────────────────
+# Maps MeXiCOSINT service names to the names stored in MicroVault.
+# Customize: `microvault alias <service>` or edit MICROVAULT_SERVICES.
+MICROVAULT_SERVICES = {
+    "abstract_phone_intelligence": "abstract_phone_intelligence",
+    "numverify":                   "numverify",
+    "opencage":                    "opencage",
+    "geoapify":                    "geoapify",
+    "ipqualityscore":              "ipqualityscore",
+}
+
+# Lazy-loaded MicroVault bridge
+_mv_bridge = None
 
 
-def _get_microvault_session():
-    """Try to import and unlock MicroVault. Returns session or None."""
-    global _mv_session
-    if _mv_session is False:
-        return None
-    if _mv_session is not None:
-        return _mv_session
-    try:
-        from microvault import vault as _mv
-        # Accessing any property triggers the password prompt only once
-        _mv_session = _mv
-        return _mv_session
-    except ImportError:
-        _mv_session = False
-        return None
-    except (FileNotFoundError, PermissionError):
-        _mv_session = False
-        return None
+def _get_microvault_bridge():
+    """Try to connect to MicroVault via the bridge. Returns bridge or None."""
+    global _mv_bridge
+    if _mv_bridge is not None:
+        return _mv_bridge if _mv_bridge._available else None
+    from mexicosint.microvault_bridge import get_bridge
+    _mv_bridge = get_bridge()
+    if _mv_bridge.is_available():
+        return _mv_bridge
+    return None
 
 
 def _get_from_microvault(service: str) -> str:
     """Look up a single key from MicroVault. Returns '' if unavailable."""
-    mv = _get_microvault_session()
-    if mv is None:
+    bridge = _get_microvault_bridge()
+    if bridge is None:
+        return ""
+    if not bridge._connected:
+        # Don't auto-connect; only return keys if already connected
         return ""
     mv_name = MICROVAULT_SERVICES.get(service, service)
     try:
-        return mv.get(mv_name) or ""
+        return bridge.get(mv_name) or ""
     except (KeyError, Exception):
         return ""
 
@@ -98,7 +104,27 @@ def mask_key(value: str) -> str:
     return f"{value[:4]}{'*' * 8} (guardada, {len(value)} caracteres)"
 
 
-def init_config(config_path: Path = CONFIG_PATH, dummy_mode: bool = False) -> dict:
+def connect_microvault() -> bool:
+    """Explicitly connect to MicroVault (prompts for password).
+    Returns True on success."""
+    bridge = _get_microvault_bridge()
+    if bridge is None:
+        print("[!] MicroVault no encontrado.")
+        print("    MeXiCOSINT busca MicroVault de dos formas:")
+        print("    1. Paquete Python: pip install microvault")
+        print("    2. CLI en PATH:    pipx install microvault")
+        print("    Si ya lo tienes instalado, verifica que 'microvault' este en tu PATH.")
+        return False
+    print("[*] Conectando a MicroVault...")
+    if bridge.connect():
+        print("[+] MicroVault conectado.")
+        return True
+    print("[!] No se pudo conectar a MicroVault (contraseña incorrecta o vault corrupto).")
+    return False
+
+
+def init_config(config_path: Path = CONFIG_PATH, dummy_mode: bool = False,
+                use_microvault: bool = False) -> dict:
     if dummy_mode:
         print("[*] Modo dummy: usando configuracion de prueba en memoria.")
         return {k: f"dummy_key_{k}" for k in SAMPLE_CONFIG}
@@ -116,8 +142,11 @@ def init_config(config_path: Path = CONFIG_PATH, dummy_mode: bool = False) -> di
             config = json.load(f)
 
     # ── Layer 2: MicroVault (encrypted, optional) ──────────────────────
-    mv = _get_microvault_session()
-    if mv is not None:
+    if use_microvault:
+        if not connect_microvault():
+            raise SystemExit(1)
+    bridge = _get_microvault_bridge()
+    if bridge is not None and bridge._connected:
         print("[*] MicroVault: conectado.")
         for service in SAMPLE_CONFIG:
             if not config.get(service):
