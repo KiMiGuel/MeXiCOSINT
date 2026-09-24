@@ -267,16 +267,6 @@ La herramienta no garantiza identidad, ubicación exacta, propiedad ni atribuci�
 
 ---
 
-## Portense bien cabrones. 🚧
-
----
-
-## Licencia 📜
-
-Este proyecto se publica bajo la licencia incluida en este repositorio.
-
----
-
 ## ¿Tienes MicroVault? 🔐
 
 [MicroVault](https://github.com/KiMiGuel/MicroVault) es una bóveda local y cifrada para tus API keys: un solo archivo, una sola contraseña maestra, sin nube ni cuentas. Tus keys se guardan cifradas en disco y solo se descifran cuando las necesitas.
@@ -330,3 +320,13 @@ MeXiCOSINT busca tus API keys en este orden:
 3. **Archivo JSON** — `~/.mx_osint_config.json` (opcional)
 
 Si tus keys están en MicroVault o en variables de entorno, el archivo JSON no se crea ni se necesita.
+
+---
+
+## Portense bien cabrones. 🚧
+
+---
+
+## Licencia 📜
+
+Este proyecto se publica bajo la licencia incluida en este repositorio.
