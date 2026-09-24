@@ -113,8 +113,15 @@
   .api-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
   .api-head h3{font-size:1.15rem;font-weight:800}
   .api-head .pill{font-family:var(--mono);font-size:.68rem;color:var(--green);border:1px solid var(--green2);border-radius:6px;padding:2px 8px;font-weight:700}
-  .api-head .api-logo{margin-left:auto;height:34px;max-width:160px;width:auto;object-fit:contain;border-radius:7px;display:block}
-  .api-head .api-logo.logo-numverify{height:44px;max-width:190px}
+  .api-head .api-logo-link{display:inline-flex;align-items:center;margin-left:auto;border-radius:8px;transition:opacity .15s,transform .15s}
+  .api-head .api-logo-link:hover{opacity:.82;transform:translateY(-1px)}
+  .api-head .api-logo-link:focus-visible{outline:2px solid var(--green);outline-offset:4px}
+  .api-head .api-logo{height:40px;max-width:210px;width:auto;object-fit:contain;display:block}
+  .api-head .api-logo.logo-numverify{height:52px;max-width:220px}
+  .api-head .api-logo.logo-opencage{height:60px;max-width:240px}
+  .api-head .api-logo-link:has(.logo-geoapify){margin-left:1rem;margin-right:auto}
+  .api-head .api-logo.logo-geoapify{height:44px;max-width:44px}
+  .api-head .api-logo.logo-ipqualityscore{height:44px;max-width:200px}
   .api p{color:var(--muted);font-size:.93rem;margin-bottom:10px}
   .api p b, .api li b{color:var(--txt)}
   .api .free{display:inline-block;font-family:var(--mono);font-size:.75rem;color:#b6f2c9;background:#070a08;border:1px solid var(--line);border-radius:6px;padding:3px 10px;margin:2px 0 12px}
@@ -321,7 +328,9 @@ mexicosint 5512345678</pre>
         <h3>AbstractAPI — Validación de teléfonos</h3>
         <span class="pill">TELÉFONOS</span>
         <span class="pill">GRATIS</span>
-        <img class="api-logo" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='190'%20height='42'%20viewBox='0%200%20190%2042'%3E%3Crect%20width='190'%20height='42'%20rx='7'%20fill='%23070a08'/%3E%3Ctext%20x='14'%20y='27'%20font-family='Arial,Helvetica,sans-serif'%20font-size='22'%20font-weight='700'%20fill='%23e8f0e9'%3EAbstract%3C/text%3E%3Ctext%20x='100'%20y='27'%20font-family='Arial,Helvetica,sans-serif'%20font-size='22'%20font-weight='700'%20fill='%231db954'%3EAPI%3C/text%3E%3C/svg%3E" alt="AbstractAPI">
+        <a class="api-logo-link" href="https://www.abstractapi.com/" target="_blank" rel="noopener" aria-label="Visitar AbstractAPI">
+          <img class="api-logo" src="logos/abstractapi.svg" alt="Abstract" loading="lazy" decoding="async">
+        </a>
       </div>
       <p><b>Qué hace:</b> valida y enriquece números telefónicos: validez, formato, país, operadora, tipo de línea y señales de apoyo.</p>
       <p><b>Cómo se integra:</b> AbstractAPI aporta evidencia telefónica opcional. No reemplaza la fuente oficial IFT/LADA.</p>
@@ -344,7 +353,9 @@ mexicosint --set-key abstract TU_KEY</div>
         <h3>NumVerify — Validación global de números</h3>
         <span class="pill">TELÉFONOS</span>
         <span class="pill">GRATIS</span>
-        <img class="api-logo logo-numverify" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='214'%20height='46'%20viewBox='0%200%20214%2046'%3E%3Crect%20width='214'%20height='46'%20rx='7'%20fill='%23070a08'/%3E%3Ctext%20x='14'%20y='30'%20font-family='Arial,Helvetica,sans-serif'%20font-size='26'%20font-weight='800'%20fill='%23e8f0e9'%3ENum%3C/text%3E%3Ctext%20x='78'%20y='30'%20font-family='Arial,Helvetica,sans-serif'%20font-size='26'%20font-weight='800'%20fill='%231db954'%3EVerify%3C/text%3E%3C/svg%3E" alt="NumVerify">
+        <a class="api-logo-link" href="https://numverify.com/" target="_blank" rel="noopener" aria-label="Visitar NumVerify">
+          <img class="api-logo logo-numverify" src="logos/numverify.svg" alt="NumVerify" loading="lazy" decoding="async">
+        </a>
       </div>
       <p><b>Qué hace:</b> valida números de 232 países contra los registros de numeración internacionales: validez, formato local e internacional, operadora, tipo de línea y país.</p>
       <p><b>Cómo se integra:</b> NumVerify aporta validación secundaria y evidencia de apoyo o conflicto. No reemplaza la localidad concreta de IFT/LADA.</p>
@@ -368,6 +379,9 @@ mexicosint --set-key numverify TU_KEY</div>
         <h3>OpenCage — Geocodificación primaria</h3>
         <span class="pill">MAPAS</span>
         <span class="pill">OPCIONAL</span>
+        <a class="api-logo-link" href="https://opencagedata.com/" target="_blank" rel="noopener" aria-label="Visitar OpenCage">
+          <img class="api-logo logo-opencage" src="logos/opencage.svg" alt="OpenCage" loading="lazy" decoding="async">
+        </a>
       </div>
       <p><b>Qué hace:</b> geocodifica la consulta canónica IFT/LADA con formato <code>ciudad, estado, Mexico</code>.</p>
       <p><b>Importante:</b> solo se geocodifican localidades concretas. Valores vagos como país, región o etiquetas genéricas se omiten.</p>
@@ -379,6 +393,9 @@ mexicosint --set-key numverify TU_KEY</div>
         <h3>Geoapify — Geocodificación fallback</h3>
         <span class="pill">MAPAS</span>
         <span class="pill">OPCIONAL</span>
+        <a class="api-logo-link" href="https://www.geoapify.com/" target="_blank" rel="noopener" aria-label="Visitar Geoapify">
+          <img class="api-logo logo-geoapify" src="logos/geoapify.svg" alt="Geoapify" loading="lazy" decoding="async">
+        </a>
       </div>
       <p><b>Qué hace:</b> convierte la localidad canónica IFT/LADA en coordenadas aproximadas para mapas cuando OpenCage no está disponible o no devuelve resultado.</p>
       <p><b>Importante:</b> esto representa la localidad de numeración, no la ubicación en vivo del teléfono ni del suscriptor.</p>
@@ -398,6 +415,9 @@ mexicosint --set-key numverify TU_KEY</div>
         <h3>IPQualityScore — Reputación telefónica</h3>
         <span class="pill">RIESGO</span>
         <span class="pill">OPCIONAL</span>
+        <a class="api-logo-link" href="https://www.ipqualityscore.com/" target="_blank" rel="noopener" aria-label="Visitar IPQualityScore">
+          <img class="api-logo logo-ipqualityscore" src="logos/ipqualityscore.svg" alt="IPQualityScore" loading="lazy" decoding="async">
+        </a>
       </div>
       <p><b>Qué hace:</b> agrega evidencia normalizada de validez, actividad, riesgo, abuso reciente, VoIP, operadora y tipo de línea.</p>
       <p><b>Guía de registro</b>:</p>
