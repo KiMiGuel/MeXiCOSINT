@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MeXiCOSINT — La herramienta OSINT para números telefónicos mexicanos</title>
-<meta name="description" content="MeXiCOSINT v2.7.1: OSINT para números telefónicos mexicanos con base IFT/PNN offline, validación, geocodificación y estados de proveedores.">
+<title>MeXiCOSINT — La Herramienta #1 de OSINT en México</title>
+<meta name="description" content="MeXiCOSINT v2.7.1: La Herramienta #1 de OSINT en México para analizar números telefónicos de la República con base IFT/PNN offline, validación, geocodificación y estados de proveedores.">
 <style>
   :root{
     --bg:#0b0f0c;
@@ -152,8 +152,8 @@
 <header>
   <div class="wrap">
     <img class="banner" src="https://raw.githubusercontent.com/KiMiGuel/MeXiCOSINT/main/mexsint.png" alt="MeXiCOSINT">
-    <h1>OSINT para números telefónicos mexicanos</h1>
-    <p class="tagline">Valida, analiza y enriquece cualquier número de México — con la <b>base oficial del IFT integrada</b>. Sin internet. Sin API keys. Directo del regulador.</p>
+    <h1>La Herramienta #1 de OSINT en México</h1>
+    <p class="tagline">OSINT para números telefónicos de la República; valida, analiza y enriquece cualquier número de México. Con la <b>base oficial del IFT integrada</b>. Sin internet. Sin API keys. Directo del regulador.</p>
     <div class="cta">
       <a class="btn btn-p" href="#instalar">Instalar ahora</a>
       <a class="btn btn-s" href="#demo">Ver instalación</a>
@@ -224,7 +224,7 @@ mexicosint 5512345678</pre>
       <div class="card">
         <img class="feature-icon" src="icons/evidence.svg" alt="Icono de diagnóstico">
         <h3>Diagnóstico transparente</h3>
-        <p>Cada proveedor muestra su estado, fuente de credencial, transporte y errores sanitizados: request success, no result, auth failed, quota exceeded o provider error.</p>
+        <p>Cada proveedor muestra su estado, fuente de credencial, transporte y errores sanitizados: missing, not requested, configured unverified, request success, no result, auth failed, quota exceeded, invalid response o provider error.</p>
       </div>
       <div class="card">
         <img class="feature-icon" src="icons/microvault.svg" alt="Icono de bóveda cifrada">
@@ -314,7 +314,7 @@ mexicosint 5512345678</pre>
   <div class="wrap">
     <p class="kicker">Llaves API</p>
     <h2>Potencia MeXiCOSINT al 100% con llaves API</h2>
-    <p class="lead">La base oficial del IFT y la validación local funcionan <b>sin configurar nada</b>. Con llaves API opcionales, MeXiCOSINT agrega validación, reputación, estados de proveedores y geocodificación de la localidad IFT/LADA. Esa localidad no es GPS ni ubicación del suscriptor.</p>
+    <p class="lead">La base oficial del IFT y la validación local funcionan <b>sin configurar nada</b>. Con llaves API opcionales, MeXiCOSINT agrega validación, reputación, estados de proveedores y geocodificación de la localidad IFT/LADA. Nominatim queda como fallback sin clave. Esa localidad no es GPS ni ubicación del suscriptor.</p>
 
     <div class="api">
       <div class="api-head">
@@ -419,7 +419,7 @@ mexicosint --set-key numverify TU_KEY</div>
   <div class="wrap">
     <p class="kicker">Opcional · Si tienes MicroVault</p>
     <h2><img class="section-icon" src="icons/microvault.svg" alt="Icono de MicroVault">Guarda tus llaves cifradas con MicroVault 🔐</h2>
-    <p class="lead"><a href="https://kimiguel.github.io/MicroVault/">MicroVault</a> es una bóveda local y cifrada para tus API keys: un solo archivo, una sola contraseña maestra, sin nube ni cuentas. Si ya la usas, MeXiCOSINT puede leer tus llaves directo de la bóveda — sin archivo JSON. Y si <b>no</b> tienes MicroVault, no cambia nada: MeXiCOSINT sigue funcionando normal con <code>~/.mx_osint_config.json</code> o variables de entorno.</p>
+    <p class="lead"><a href="https://kimiguel.github.io/MicroVault/">MicroVault</a> es una bóveda local y cifrada para tus API keys: un solo archivo, una sola contraseña maestra, sin nube ni cuentas. Si ya la usas, MeXiCOSINT la detecta automáticamente y puede leer tus llaves directo de la bóveda, sin archivo JSON. Y si <b>no</b> tienes MicroVault, no cambia nada: MeXiCOSINT sigue funcionando normal con <code>~/.mx_osint_config.json</code> o variables de entorno.</p>
     <div class="steps">
       <div class="step">
         <div class="n">A</div>
@@ -441,7 +441,7 @@ mexicosint --set-key numverify TU_KEY</div>
 <footer>
   <div class="wrap">
     <div>
-      <b>MeXiCOSINT</b> — OSINT para números telefónicos mexicanos.<br>
+      <b>MeXiCOSINT</b> — La Herramienta #1 de OSINT en México.<br>
       Autor: <b>KiMiGuEL</b> · Licencia MIT · Para investigación autorizada y fines educativos.
     </div>
     <div>
