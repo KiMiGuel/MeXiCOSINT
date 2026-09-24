@@ -66,7 +66,7 @@ Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 
 ## Todas las opciones
 
 ```text
-mexicosint [-h] [--dummy-test] [-b]
+mexicosint [-h] [--dummy-test] [--microvault]
            [--set-key SERVICIO KEY] [--list-keys] [--config-path]
            [--version] [number]
 ```
@@ -75,7 +75,7 @@ mexicosint [-h] [--dummy-test] [-b]
 |---|---|
 | `number` | Número telefónico mexicano a escanear |
 | `--dummy-test` | Datos de prueba, sin llamadas reales a APIs |
-| `-b`, `--compact-banner` | Fuerza el banner compacto (alias: `--small-banner`) |
+| `--microvault` | Lee las API keys desde un vault cifrado de MicroVault |
 | `--set-key SERVICIO KEY` | Guarda una API key en el archivo de configuración |
 | `--list-keys` | Muestra las API keys guardadas (enmascaradas) |
 | `--config-path` | Muestra la ruta del archivo de configuración |
@@ -98,10 +98,10 @@ Prueba sin consumir créditos de API:
 mexicosint --dummy-test 6634647308
 ```
 
-Banner compacto:
+Usar MicroVault como fuente de API keys:
 
 ```bash
-mexicosint -b 5512345678
+mexicosint --microvault 5512345678
 ```
 
 ## Gestión de API keys

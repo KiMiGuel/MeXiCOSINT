@@ -79,20 +79,25 @@ MeXiCOSINT/
 │       ├── config.py
 │       ├── evidence.py
 │       ├── main.py
+│       ├── microvault_bridge.py
 │       ├── numbering.py
+│       ├── core/
+│       │   └── models.py
 │       ├── data/
+│       │   ├── lada.py
+│       │   ├── ift_blocks.csv.gz
+│       │   └── ift_ng_blocks.csv.gz
 │       ├── modules/
 │       │   ├── ift_blocks.py
-│       │   ├── local_parser.py
-│       │   └── quienhabla.py
+│       │   └── local_parser.py
 │       ├── providers/
+│       │   ├── base.py
 │       │   ├── geoapify.py
 │       │   ├── ipqualityscore.py
 │       │   ├── models.py
 │       │   └── opencage.py
-│       ├── services/
-│       │   └── scanner.py
-│       └── utils/
+│       └── services/
+│           └── scanner.py
 ├── tools/
 │   └── update_ift_blocks.py
 ├── pyproject.toml
@@ -164,7 +169,8 @@ Ejecuta MeXiCOSINT usando el comando:
 
 ```bash
 mexicosint 5512345678
-mexicosint -b 5512345678
+mexicosint +525512345678
+mexicosint --microvault 5512345678
 ```
 
 Gestión de API keys desde la CLI:
@@ -191,7 +197,7 @@ O ejecutar el módulo del paquete:
 PYTHONPATH=src python3 -m mexicosint 5512345678
 ```
 
-Usa `-b`, `--compact-banner` o el alias heredado `--small-banner` para forzar el banner ASCII compacto.
+Usa `--dummy-test` para datos de prueba sin llamadas reales a APIs, y `--microvault` para leer las API keys desde un vault cifrado de MicroVault.
 
 ---
 

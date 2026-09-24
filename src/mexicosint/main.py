@@ -1,9 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.5.7
+MeXicOSINT v2.6.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.6.0:
+  - MicroVault integration completa: --microvault flag + bridge module
+    (Python import con fallback a CLI) para leer API keys desde el vault
+    cifrado, compatible con aislamiento de pipx
+  - Orden de resolucion de keys: env vars > MicroVault > JSON (JSON opcional)
+  - Mapeo de nombres de servicio de MicroVault (abstract_api, numverify_api,
+    opencage_api, ipgs) alineado con la convencion *_api del vault
+  - Acepta variables de entorno con nombre plano (GEOAPIFY_API_KEY, etc.),
+    asi `eval "$(microvault env)"` funciona directo
+  - Fallback de geocodificacion GPS: intenta LADA, ciudad de consenso y
+    region phonenumbers cuando la localidad canonica es vacia o vaga
+  - Cosmetico: consola unificada, separadores entre secciones, sin filas
+    vacias, advertencia de portabilidad en una linea
+  - Limpieza: dependencias sin uso removidas (beautifulsoup4, python-dotenv,
+    lxml), MIGRATION.md eliminado, docs actualizadas (flag -b removido)
 
 Cambios v2.5.6:
   - MicroVault integration: API keys can be read from MicroVault (encrypted

@@ -84,16 +84,16 @@ Basic scan:
 mexicosint 5512345678
 ```
 
-Compact banner:
-
-```bash
-mexicosint -b 5512345678
-```
-
 Dummy test, with no live API calls:
 
 ```bash
 mexicosint --dummy-test 6634647308
+```
+
+Use MicroVault as the API-key source:
+
+```bash
+mexicosint --microvault 5512345678
 ```
 
 Show version:
@@ -111,7 +111,7 @@ mexicosint --help
 Current CLI shape:
 
 ```text
-mexicosint [-h] [--dummy-test] [-b]
+mexicosint [-h] [--dummy-test] [--microvault]
            [--set-key SERVICIO KEY] [--list-keys] [--config-path]
            [--version] [number]
 ```

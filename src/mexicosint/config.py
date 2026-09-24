@@ -73,14 +73,16 @@ def _from_env(service: str) -> str:
 
 
 # ── MicroVault service-name mappings ───────────────────────────────────
-# Maps MeXiCOSINT service names to the names stored in MicroVault.
-# Customize: `microvault alias <service>` or edit MICROVAULT_SERVICES.
+# Maps MeXiCOSINT service names to the names actually stored in MicroVault.
+# (The user's vault uses a *_api suffix convention; geoapify and ipgs are
+# stored without it.) Customize here rather than renaming vault entries,
+# since the same vault entries are shared by other tools.
 MICROVAULT_SERVICES = {
-    "abstract_phone_intelligence": "abstract_phone_intelligence",
-    "numverify":                   "numverify",
-    "opencage":                    "opencage",
+    "abstract_phone_intelligence": "abstract_api",
+    "numverify":                   "numverify_api",
+    "opencage":                    "opencage_api",
     "geoapify":                    "geoapify",
-    "ipqualityscore":              "ipqualityscore",
+    "ipqualityscore":              "ipgs",
 }
 
 # Lazy-loaded MicroVault bridge

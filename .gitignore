@@ -58,3 +58,10 @@ Future_of_MeXiCOSINT.md
 MICROSTACKS.md
 READFIRST.md
 mexicosint_refactoring_guide_9.17.26.md
+
+# Agent instructions (local only)
+AGENTS.md
+
+# Generated artifacts — regenerated in place, not committed
+graphify-out/
+brag-output/
