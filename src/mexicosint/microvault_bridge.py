@@ -62,19 +62,22 @@ class MicroVaultBridge:
 
         if self._mode == "python":
             try:
-                # Any read triggers the password prompt once
-                self._session.services()
+                # Any read triggers the password prompt once.
+                # Use list() (not services(), which is shadowed by the module's
+                # own list() function in microvault <fixed>).
+                self._session.list()
                 self._connected = True
                 return True
             except (FileNotFoundError, PermissionError, Exception):
                 return False
 
         if self._mode == "cli":
-            # The `microvault list` command prompts for the password and
-            # prints the service list.  We use it as a connection test.
+            # `microvault env` (no arg) prompts for the password, then prints
+            # `export NAME=value` lines for every stored service.  Exit code 0
+            # means the password was accepted.  Used purely as a connection test.
             try:
                 result = subprocess.run(
-                    ["microvault", "list"],
+                    ["microvault", "env"],
                     capture_output=True, text=True, timeout=30,
                 )
                 if result.returncode == 0:

@@ -32,25 +32,45 @@ SERVICE_ALIASES = {
 
 # ── Environment variable mappings ──────────────────────────────────────
 # Highest priority source.  Checked before MicroVault and JSON config.
-# Override any mapping by setting the env var directly.
+# Each service maps to a list of env-var names, checked in order:
+#   [0] MeXiCOSINT's own prefixed name (MEXICOSINT_*)
+#   [1] MicroVault's default export name (<SERVICE>_API_KEY) — so
+#       `eval "$(microvault env)"` works directly, no alias needed.
 ENV_VAR_MAP = {
-    "abstract_phone_intelligence": "MEXICOSINT_ABSTRACT_API_KEY",
-    "numverify":                   "MEXICOSINT_NUMVERIFY_API_KEY",
-    "opencage":                    "MEXICOSINT_OPENCAGE_API_KEY",
-    "geoapify":                    "MEXICOSINT_GEOAPIFY_API_KEY",
-    "ipqualityscore":              "MEXICOSINT_IPQS_API_KEY",
+    "abstract_phone_intelligence": [
+        "MEXICOSINT_ABSTRACT_API_KEY",
+        "ABSTRACT_PHONE_INTELLIGENCE_API_KEY",
+    ],
+    "numverify": [
+        "MEXICOSINT_NUMVERIFY_API_KEY",
+        "NUMVERIFY_API_KEY",
+    ],
+    "opencage": [
+        "MEXICOSINT_OPENCAGE_API_KEY",
+        "OPENCAGE_API_KEY",
+    ],
+    "geoapify": [
+        "MEXICOSINT_GEOAPIFY_API_KEY",
+        "GEOAPIFY_API_KEY",
+    ],
+    "ipqualityscore": [
+        "MEXICOSINT_IPQS_API_KEY",
+        "IPQUALITYSCORE_API_KEY",
+    ],
 }
 
-# ── MicroVault service-name mappings ───────────────────────────────────
-# Maps MeXiCOSINT service names to the names stored in MicroVault.
-# Customize: `microvault alias <service>` or edit MICROVAULT_SERVICES.
-MICROVAULT_SERVICES = {
-    "abstract_phone_intelligence": "abstract_phone_intelligence",
-    "numverify":                   "numverify",
-    "opencage":                    "opencage",
-    "geoapify":                    "geoapify",
-    "ipqualityscore":              "ipqualityscore",
-}
+
+def _env_var_names(service: str) -> list[str]:
+    return ENV_VAR_MAP.get(service, [])
+
+
+def _from_env(service: str) -> str:
+    for name in _env_var_names(service):
+        val = os.environ.get(name, "").strip()
+        if val:
+            return val
+    return ""
+
 
 # ── MicroVault service-name mappings ───────────────────────────────────
 # Maps MeXiCOSINT service names to the names stored in MicroVault.
@@ -155,8 +175,8 @@ def init_config(config_path: Path = CONFIG_PATH, dummy_mode: bool = False,
                     config[service] = val
 
     # ── Layer 3: Environment variables (highest priority) ─────────────
-    for service, env_var in ENV_VAR_MAP.items():
-        val = os.environ.get(env_var, "").strip()
+    for service in SAMPLE_CONFIG:
+        val = _from_env(service)
         if val:
             config[service] = val
 
@@ -196,8 +216,7 @@ def check_keys(config: dict, dummy_mode: bool = False) -> list[str]:
             active.append(key)
         elif isinstance(value, str) and len(value) > 5:
             # Show source
-            env_var = ENV_VAR_MAP.get(key, "")
-            if env_var and os.environ.get(env_var, "").strip():
+            if _from_env(key):
                 source = "env var"
             elif _get_from_microvault(key):
                 source = "MicroVault"
@@ -215,11 +234,9 @@ def check_keys(config: dict, dummy_mode: bool = False) -> list[str]:
 
 def get_api_key(config: dict, key: str) -> str:
     # 1. Environment variable (highest priority)
-    env_var = ENV_VAR_MAP.get(key, "")
-    if env_var:
-        val = os.environ.get(env_var, "").strip()
-        if val:
-            return val
+    val = _from_env(key)
+    if val:
+        return val
 
     # 2. MicroVault
     val = _get_from_microvault(key)
