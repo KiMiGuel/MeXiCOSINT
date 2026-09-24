@@ -7,17 +7,17 @@ import argparse
 from mexicosint import __version__
 
 EPILOG = """ejemplos:
-  mexicosint 5512345678                  Escanea un numero mexicano
+  mexicosint 5512345678                  Escanea un numero mexicano (MicroVault se detecta solo)
   mexicosint +525512345678               Formato internacional tambien funciona
-  mexicosint --dummy-test 5512345678     Datos de prueba, sin llamadas a APIs
-  mexicosint --microvault 5512345678     Usa keys de MicroVault
+  mexicosint --no-microvault 5512345678  Omite MicroVault aunque este instalado
   mexicosint --set-key geoapify TU_KEY   Guarda una API key
   mexicosint --list-keys                 Muestra keys guardadas (enmascaradas)
   mexicosint --config-path               Ruta del archivo de configuracion
 
 fuentes de API keys (en orden de prioridad):
   1. Variables de entorno   MEXICOSINT_GEOAPIFY_API_KEY, etc.
-  2. MicroVault             --microvault (vault cifrado en ~/.microvault/)
+  2. MicroVault             auto-detectado (vault cifrado en ~/.microvault/);
+                            --no-microvault lo omite, --microvault lo fuerza
   3. Archivo JSON           ~/.mx_osint_config.json (opcional)
 
 servicios validos para --set-key:
@@ -48,12 +48,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dummy-test",
         action="store_true",
-        help="Usa datos de prueba y evita llamadas reales a APIs.",
+        help=argparse.SUPPRESS,  # internal debugging only, not documented publicly
     )
     parser.add_argument(
         "--microvault",
         action="store_true",
-        help="Usa API keys desde MicroVault (vault cifrado, pide contraseña).",
+        help="Fuerza la conexion a MicroVault (ya se detecta solo si esta instalado).",
+    )
+    parser.add_argument(
+        "--no-microvault",
+        action="store_true",
+        help="Omite MicroVault aunque este instalado (no pide contraseña).",
     )
     parser.add_argument(
         "--set-key",
@@ -90,6 +95,8 @@ def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
         argv.append("--dummy-test")
     if args.microvault:
         argv.append("--microvault")
+    if args.no_microvault:
+        argv.append("--no-microvault")
     if args.number:
         argv.append(args.number)
     return argv

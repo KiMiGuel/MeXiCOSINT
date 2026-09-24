@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.6.0
+MeXicOSINT v2.7.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.7.0:
+  - MicroVault ya no requiere el flag --microvault: se auto-detecta y se
+    conecta solo cuando falta una key. --no-microvault lo omite,
+    --microvault fuerza la conexion (comportamiento explicito anterior)
+  - Bridge (microvault_bridge.py) usa el perfil "mexicosint" de MicroVault
+    con `microvault env --profile mexicosint --json` cuando existe: una
+    sola contraseña por ejecucion en vez de una por cada key, y ninguna
+    key ajena al perfil cruza a este proceso
+  - --dummy-test sigue existiendo para depuracion interna pero ya no se
+    documenta publicamente (--help, README, docs/)
 
 Cambios v2.6.0:
   - MicroVault integration completa: --microvault flag + bridge module
@@ -462,8 +473,9 @@ def print_banner():
     print()
 
 
-def init_config(use_microvault: bool = False):
-    return config_store.init_config(CONFIG_PATH, DUMMY_MODE, use_microvault=use_microvault)
+def init_config(use_microvault: bool = False, skip_microvault: bool = False):
+    return config_store.init_config(CONFIG_PATH, DUMMY_MODE, use_microvault=use_microvault,
+                                     skip_microvault=skip_microvault)
 
 
 def check_keys(config):
@@ -1580,6 +1592,7 @@ def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
     dummy_mode = False
     use_microvault = False
+    skip_microvault = False
 
     if "--dummy-test" in args:
         dummy_mode = True
@@ -1591,6 +1604,10 @@ def main(argv=None):
         use_microvault = True
         args.remove("--microvault")
 
+    if "--no-microvault" in args:
+        skip_microvault = True
+        args.remove("--no-microvault")
+
     ScanSettings(dummy_mode=dummy_mode)
 
     print_banner()
@@ -1599,8 +1616,8 @@ def main(argv=None):
 
     if not number:
         print("Uso: mexicosint [opciones] <numero_mexicano>")
-        print("     mexicosint --microvault 5512345678")
-        print("     mexicosint --dummy-test 5512345678")
+        print("     mexicosint 5512345678")
+        print("     mexicosint --no-microvault 5512345678")
         print("     mexicosint --set-key geoapify TU_KEY")
         print("     mexicosint --list-keys")
         print("     mexicosint --help")
@@ -1609,7 +1626,7 @@ def main(argv=None):
     print(f"[+] Fecha/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    config = init_config(use_microvault=use_microvault)
+    config = init_config(use_microvault=use_microvault, skip_microvault=skip_microvault)
     active = check_keys(config)
 
     if number:

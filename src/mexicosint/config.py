@@ -146,7 +146,7 @@ def connect_microvault() -> bool:
 
 
 def init_config(config_path: Path = CONFIG_PATH, dummy_mode: bool = False,
-                use_microvault: bool = False) -> dict:
+                use_microvault: bool = False, skip_microvault: bool = False) -> dict:
     if dummy_mode:
         print("[*] Modo dummy: usando configuracion de prueba en memoria.")
         return {k: f"dummy_key_{k}" for k in SAMPLE_CONFIG}
@@ -163,18 +163,26 @@ def init_config(config_path: Path = CONFIG_PATH, dummy_mode: bool = False,
         with open(config_path, encoding="utf-8") as f:
             config = json.load(f)
 
-    # ── Layer 2: MicroVault (encrypted, optional) ──────────────────────
-    if use_microvault:
-        if not connect_microvault():
-            raise SystemExit(1)
-    bridge = _get_microvault_bridge()
-    if bridge is not None and bridge._connected:
-        print("[*] MicroVault: conectado.")
-        for service in SAMPLE_CONFIG:
-            if not config.get(service):
-                val = _get_from_microvault(service)
-                if val:
-                    config[service] = val
+    # ── Layer 2: MicroVault (encrypted, auto-detected) ─────────────────
+    # No --microvault flag needed: if MicroVault is installed and a
+    # service is still missing after the JSON layer, connect automatically
+    # (prompts for the master password once). --microvault forces the
+    # connection attempt (and hard-fails if it doesn't work); --no-microvault
+    # skips MicroVault entirely, even if keys are missing.
+    if not skip_microvault:
+        missing = [s for s in SAMPLE_CONFIG if not config.get(s)]
+        bridge = _get_microvault_bridge()
+        if use_microvault or (bridge is not None and missing):
+            if not connect_microvault() and use_microvault:
+                raise SystemExit(1)
+        bridge = _get_microvault_bridge()
+        if bridge is not None and bridge._connected:
+            print("[*] MicroVault: conectado.")
+            for service in SAMPLE_CONFIG:
+                if not config.get(service):
+                    val = _get_from_microvault(service)
+                    if val:
+                        config[service] = val
 
     # ── Layer 3: Environment variables (highest priority) ─────────────
     for service in SAMPLE_CONFIG:

@@ -66,7 +66,7 @@ Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 
 ## Todas las opciones
 
 ```text
-mexicosint [-h] [--dummy-test] [--microvault]
+mexicosint [-h] [--no-microvault] [--microvault]
            [--set-key SERVICIO KEY] [--list-keys] [--config-path]
            [--version] [number]
 ```
@@ -74,8 +74,8 @@ mexicosint [-h] [--dummy-test] [--microvault]
 | Opción | Descripción |
 |---|---|
 | `number` | Número telefónico mexicano a escanear |
-| `--dummy-test` | Datos de prueba, sin llamadas reales a APIs |
-| `--microvault` | Lee las API keys desde un vault cifrado de MicroVault |
+| `--no-microvault` | Omite MicroVault aunque esté instalado |
+| `--microvault` | Fuerza la conexión a MicroVault (ya se detecta solo si está instalado) |
 | `--set-key SERVICIO KEY` | Guarda una API key en el archivo de configuración |
 | `--list-keys` | Muestra las API keys guardadas (enmascaradas) |
 | `--config-path` | Muestra la ruta del archivo de configuración |
@@ -92,17 +92,7 @@ Escaneo básico:
 mexicosint 5512345678
 ```
 
-Prueba sin consumir créditos de API:
-
-```bash
-mexicosint --dummy-test 6634647308
-```
-
-Usar MicroVault como fuente de API keys:
-
-```bash
-mexicosint --microvault 5512345678
-```
+MicroVault se detecta y se usa automáticamente si lo tienes instalado — no requiere ninguna opción. Ver la sección "¿Tienes MicroVault?" en el README.
 
 ## Gestión de API keys
 
@@ -237,16 +227,6 @@ No requiere configuración adicional: instala o actualiza normalmente (`pipx upg
 ## Enlaces OSINT
 
 Los enlaces generados usan variantes exactas del número: WhatsApp por `wa.me`, búsqueda Google del E.164, dígitos internacionales, dígitos nacionales, formato espaciado y búsquedas `site:` para Facebook, TikTok, X y Twitter.
-
----
-
-## Modo de prueba
-
-```bash
-mexicosint --dummy-test 6634647308
-```
-
-Usa datos de ejemplo y no realiza llamadas reales a APIs. Pensado para desarrollo y pruebas; también valida que el flujo de proveedores pueda ejecutarse sin keys reales.
 
 ---
 

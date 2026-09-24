@@ -7,12 +7,37 @@ Tries two approaches to reach MicroVault:
 The CLI fallback is the common case: pipx isolates MeXiCOSINT in its own
 venv, so `from microvault import vault` raises ImportError even when the
 user has MicroVault installed globally.
+
+Profile scoping: if a "mexicosint" profile exists in MicroVault
+(~/.microvault/profiles.json — see `microvault profile`), the CLI bridge
+uses `microvault env --profile mexicosint` instead of bare `microvault
+env`, so only MeXiCOSINT's own keys ever cross into this process — not
+every key in a vault that may be shared with other tools. profiles.json is
+plain JSON (just service names, no key material), so checking for the
+profile never needs the master password. Falls back to bare `microvault
+env` when the profile hasn't been set up yet.
 """
 
 from __future__ import annotations
 
+import json
+import os
 import shutil
 import subprocess
+
+PROFILE_NAME = "mexicosint"
+_PROFILES_FILE = os.path.join(
+    os.environ.get("MICROVAULT_HOME", os.path.expanduser("~/.microvault")),
+    "profiles.json",
+)
+
+
+def _mexicosint_profile_exists() -> bool:
+    try:
+        with open(_PROFILES_FILE, encoding="utf-8") as f:
+            return PROFILE_NAME in json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return False
 
 
 class MicroVaultBridge:
@@ -27,6 +52,9 @@ class MicroVaultBridge:
         self._session = None       # Python API session (mode == "python")
         self._connected = False
         self._available = False
+        self._env_cache = None     # {service: key}, populated in CLI mode
+                                    # when a profile fetch batches every key
+                                    # in one call instead of one per service
 
     # ── detection ──────────────────────────────────────────────────────
 
@@ -72,15 +100,31 @@ class MicroVaultBridge:
                 return False
 
         if self._mode == "cli":
-            # `microvault env` (no arg) prompts for the password, then prints
+            # `microvault env` prompts for the password, then prints
             # `export NAME=value` lines for every stored service.  Exit code 0
             # means the password was accepted.  Used purely as a connection test.
+            #
+            # When a "mexicosint" profile exists, fetch it as JSON in this
+            # same call instead: one password prompt gets every key this run
+            # will need, cached by vault-native service name, so get() below
+            # never has to shell out (and re-prompt) again per service. Keys
+            # for other tools sharing the vault still never cross into this
+            # process either way.
+            has_profile = _mexicosint_profile_exists()
+            cmd = ["microvault", "env"]
+            if has_profile:
+                cmd += ["--profile", PROFILE_NAME, "--json"]
             try:
                 result = subprocess.run(
-                    ["microvault", "env"],
+                    cmd,
                     capture_output=True, text=True, timeout=30,
                 )
                 if result.returncode == 0:
+                    if has_profile:
+                        try:
+                            self._env_cache = json.loads(result.stdout)
+                        except json.JSONDecodeError:
+                            self._env_cache = None
                     self._connected = True
                     return True
             except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -103,6 +147,8 @@ class MicroVaultBridge:
                 return ""
 
         if self._mode == "cli":
+            if self._env_cache is not None:
+                return self._env_cache.get(service, "")
             try:
                 result = subprocess.run(
                     ["microvault", "env", service],

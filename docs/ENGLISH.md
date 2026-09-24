@@ -20,7 +20,7 @@ It is phone-only in v2.5.1. The old IP workflow was removed: no `--ip`, no Shoda
 * OSINT links using exact phone-number variants.
 * JSON reports under `output/reports/`.
 * CLI API-key management with `--set-key`, `--list-keys`, and `--config-path`.
-* `--dummy-test` mode with fixtures and no live API calls.
+* MicroVault auto-detected when installed — no flag needed.
 
 ---
 
@@ -84,16 +84,10 @@ Basic scan:
 mexicosint 5512345678
 ```
 
-Dummy test, with no live API calls:
+MicroVault is auto-detected and used automatically when installed — no flag needed:
 
 ```bash
-mexicosint --dummy-test 6634647308
-```
-
-Use MicroVault as the API-key source:
-
-```bash
-mexicosint --microvault 5512345678
+mexicosint 5512345678
 ```
 
 Show version:
@@ -111,7 +105,7 @@ mexicosint --help
 Current CLI shape:
 
 ```text
-mexicosint [-h] [--dummy-test] [--microvault]
+mexicosint [-h] [--no-microvault] [--microvault]
            [--set-key SERVICIO KEY] [--list-keys] [--config-path]
            [--version] [number]
 ```
@@ -323,12 +317,6 @@ Check configured keys:
 
 ```bash
 mexicosint --list-keys
-```
-
-Run a safe dummy scan:
-
-```bash
-mexicosint --dummy-test 6634647308
 ```
 
 ---
