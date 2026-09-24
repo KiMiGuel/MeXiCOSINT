@@ -20,11 +20,7 @@
 ---
 
 <p align="center">
-  <a href="https://github.com/KiMiGuel/MeXiCOSINT/blob/main/docs/brag.mp4">
-    <img src="docs/brag.jpg" alt="MeXiCOSINT demo video" width="850">
-  </a>
-  <br>
-  <sub>▶️ Click la imagen para ver el video</sub>
+  <img src="docs/brag.gif" alt="MeXiCOSINT demo" width="850">
 </p>
 
 ---
