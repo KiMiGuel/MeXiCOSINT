@@ -52,3 +52,9 @@ src/mexicosint/data/raw_pnn/
 
 # Claude Code
 .claude/
+
+# Local planning/notes — kept off the repo
+Future_of_MeXiCOSINT.md
+MICROSTACKS.md
+READFIRST.md
+mexicosint_refactoring_guide_9.17.26.md
