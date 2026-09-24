@@ -283,28 +283,54 @@ Este proyecto se publica bajo la licencia incluida en este repositorio.
 
 ## ¿Tienes MicroVault? 🔐
 
-Si ya usas [MicroVault](https://github.com/KiMiGuel/MicroVault) para guardar tus API keys, MeXiCOSINT puede leerlas directamente desde el vault cifrado — sin necesidad del archivo JSON.
+[MicroVault](https://github.com/KiMiGuel/MicroVault) es una bóveda local y cifrada para tus API keys: un solo archivo, una sola contraseña maestra, sin nube ni cuentas. Tus keys se guardan cifradas en disco y solo se descifran cuando las necesitas.
 
-### Configuración
+Si ya usas MicroVault, MeXiCOSINT puede leer tus keys directamente desde la bóveda cifrada — sin necesidad del archivo JSON. Y si **no** tienes MicroVault, no te preocupes: MeXiCOSINT sigue funcionando normalmente con el archivo JSON (`~/.mx_osint_config.json`) o con variables de entorno.
 
-Guarda tus keys en MicroVault con los nombres que MeXiCOSINT espera:
+### Cómo usarlo
+
+Hay dos formas. Elige una.
+
+**Opción A — cargar las keys una vez por terminal (recomendada):**
+
+1. Desbloquea la bóveda en tu terminal (pide tu contraseña maestra una sola vez):
+   ```bash
+   eval "$(microvault env)"
+   ```
+2. Ejecuta MeXiCOSINT con normalidad:
+   ```bash
+   mexicosint 5512345678
+   ```
+   Las keys quedan disponibles en ese terminal hasta que lo cierres.
+
+**Opción B — pedir la contraseña en cada búsqueda:**
 
 ```bash
-microvault add geoapify
-microvault add opencage
-microvault add ipqualityscore
-microvault add numverify
-microvault add abstract_phone_intelligence
+mexicosint --microvault 5512345678
 ```
 
-Eso es todo. La próxima vez que ejecutes `mexicosint`, se conectará automáticamente a MicroVault (te pedirá la contraseña maestra una vez por sesión) y usará las keys del vault.
+MeXiCOSINT se conecta a MicroVault, pide tu contraseña maestra y usa las keys de la bóveda para esa búsqueda.
+
+### Nombres de las keys
+
+MeXiCOSINT busca estas keys dentro de tu bóveda:
+
+| Key en MicroVault | Para qué se usa |
+|---|---|
+| `geoapify` | Geocodificación de respaldo |
+| `opencage_api` | Geocodificación primaria |
+| `ipgs` | Reputación y abuso telefónico |
+| `numverify_api` | Validación secundaria |
+| `abstract_api` | Enriquecimiento telefónico |
+
+Si tu bóveda usa otros nombres, puedes ajustarlos en `src/mexicosint/config.py` (variable `MICROVAULT_SERVICES`) o crear un alias en MicroVault con el comando `microvault alias`.
 
 ### Orden de resolución de keys
 
 MeXiCOSINT busca tus API keys en este orden:
 
-1. **Variables de entorno** — `MEXICOSINT_GEOAPIFY_API_KEY`, `MEXICOSINT_OPENCAGE_API_KEY`, etc.
-2. **MicroVault** — vault cifrado en `~/.microvault/vault.enc`
-3. **Archivo JSON** — `~/.mx_osint_config.json` (opcional, solo si existe)
+1. **Variables de entorno** — `MEXICOSINT_GEOAPIFY_API_KEY`, `GEOAPIFY_API_KEY`, etc.
+2. **MicroVault** — bóveda cifrada en `~/.microvault/vault.enc`
+3. **Archivo JSON** — `~/.mx_osint_config.json` (opcional)
 
 Si tus keys están en MicroVault o en variables de entorno, el archivo JSON no se crea ni se necesita.
