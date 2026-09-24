@@ -141,6 +141,7 @@
       <a href="#instalar">Instalar</a>
       <a href="#demo">Video</a>
       <a href="#llaves">Llaves API</a>
+      <a href="#microvault">MicroVault</a>
       <a href="https://github.com/KiMiGuel/MeXiCOSINT">GitHub</a>
     </div>
   </div>
@@ -398,6 +399,29 @@ mexicosint --set-key numverify TU_KEY</div>
       </ol>
       <div class="cmd">mexicosint --set-key ipqualityscore TU_API_KEY</div>
       <a class="signup" href="https://www.ipqualityscore.com/create-account">Registrarse en IPQualityScore</a>
+    </div>
+  </div>
+</section>
+
+<section id="microvault">
+  <div class="wrap">
+    <p class="kicker">Opcional · Si tienes MicroVault</p>
+    <h2>Guarda tus llaves cifradas con MicroVault 🔐</h2>
+    <p class="lead"><a href="https://kimiguel.github.io/MicroVault/">MicroVault</a> es una bóveda local y cifrada para tus API keys: un solo archivo, una sola contraseña maestra, sin nube ni cuentas. Si ya la usas, MeXiCOSINT puede leer tus llaves directo de la bóveda — sin archivo JSON. Y si <b>no</b> tienes MicroVault, no cambia nada: MeXiCOSINT sigue funcionando normal con <code>~/.mx_osint_config.json</code> o variables de entorno.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="n">A</div>
+        <h3>Cargar una vez por terminal</h3>
+        <p><code>eval "$(microvault env)"</code><br>Pide tu contraseña maestra una sola vez; luego usa MeXiCOSINT con normalidad.</p>
+      </div>
+      <div class="step">
+        <div class="n">B</div>
+        <h3>Pedir la contraseña por búsqueda</h3>
+        <p><code>mexicosint --microvault 5512345678</code><br>MeXiCOSINT se conecta a MicroVault y pide tu contraseña maestra para esa búsqueda.</p>
+      </div>
+    </div>
+    <div class="cta" style="margin-top:36px">
+      <a class="btn btn-p" href="https://kimiguel.github.io/MicroVault/">Conoce MicroVault</a>
     </div>
   </div>
 </section>
