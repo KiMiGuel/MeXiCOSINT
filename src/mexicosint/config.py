@@ -1,4 +1,13 @@
-"""Runtime config and API-key management."""
+"""Runtime config and API-key management.
+
+Key resolution order per service:
+  1. Environment variable  (MEXICOSINT_<SERVICE>_API_KEY or custom mapping)
+  2. MicroVault            (encrypted vault at ~/.microvault/vault.enc)
+  3. JSON config file      (plaintext fallback at ~/.mx_osint_config.json)
+
+The JSON file is entirely optional. If all your keys live in MicroVault
+or env vars, MeXiCOSINT will never touch the JSON file.
+"""
 
 from __future__ import annotations
 
@@ -21,6 +30,63 @@ SERVICE_ALIASES = {
     "abstract": "abstract_phone_intelligence",
 }
 
+# ── Environment variable mappings ──────────────────────────────────────
+# Highest priority source.  Checked before MicroVault and JSON config.
+# Override any mapping by setting the env var directly.
+ENV_VAR_MAP = {
+    "abstract_phone_intelligence": "MEXICOSINT_ABSTRACT_API_KEY",
+    "numverify":                   "MEXICOSINT_NUMVERIFY_API_KEY",
+    "opencage":                    "MEXICOSINT_OPENCAGE_API_KEY",
+    "geoapify":                    "MEXICOSINT_GEOAPIFY_API_KEY",
+    "ipqualityscore":              "MEXICOSINT_IPQS_API_KEY",
+}
+
+# ── MicroVault service-name mappings ───────────────────────────────────
+# Maps MeXiCOSINT service names to the names stored in MicroVault.
+# Customize: `microvault alias <service>` or edit MICROVAULT_SERVICES.
+MICROVAULT_SERVICES = {
+    "abstract_phone_intelligence": "abstract_phone_intelligence",
+    "numverify":                   "numverify",
+    "opencage":                    "opencage",
+    "geoapify":                    "geoapify",
+    "ipqualityscore":              "ipqualityscore",
+}
+
+# Lazy-loaded MicroVault session (None = not attempted, False = unavailable)
+_mv_session = None
+
+
+def _get_microvault_session():
+    """Try to import and unlock MicroVault. Returns session or None."""
+    global _mv_session
+    if _mv_session is False:
+        return None
+    if _mv_session is not None:
+        return _mv_session
+    try:
+        from microvault import vault as _mv
+        # Accessing any property triggers the password prompt only once
+        _mv_session = _mv
+        return _mv_session
+    except ImportError:
+        _mv_session = False
+        return None
+    except (FileNotFoundError, PermissionError):
+        _mv_session = False
+        return None
+
+
+def _get_from_microvault(service: str) -> str:
+    """Look up a single key from MicroVault. Returns '' if unavailable."""
+    mv = _get_microvault_session()
+    if mv is None:
+        return ""
+    mv_name = MICROVAULT_SERVICES.get(service, service)
+    try:
+        return mv.get(mv_name) or ""
+    except (KeyError, Exception):
+        return ""
+
 
 def canonical_service(name: str) -> str:
     return SERVICE_ALIASES.get(name.strip().lower(), name.strip().lower())
@@ -37,22 +103,54 @@ def init_config(config_path: Path = CONFIG_PATH, dummy_mode: bool = False) -> di
         print("[*] Modo dummy: usando configuracion de prueba en memoria.")
         return {k: f"dummy_key_{k}" for k in SAMPLE_CONFIG}
 
-    if not config_path.exists():
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(SAMPLE_CONFIG, f, indent=2, ensure_ascii=False)
-        os.chmod(config_path, stat.S_IRUSR | stat.S_IWUSR)
-        print(f"[!] Archivo de configuracion creado: {config_path}")
-        print("[!] Editalo y agrega tus API keys, luego ejecuta de nuevo.")
+    config = {}
+
+    # ── Layer 1: JSON config file (optional, not created automatically) ──
+    if config_path.exists():
+        config_stat = config_path.stat()
+        current_mode = config_stat.st_mode & 0o777
+        if current_mode != 0o600:
+            print(f"[!] ADVERTENCIA: Permisos del config son {oct(current_mode)}, deberian ser 0o600.")
+            print(f"    Ejecuta: chmod 600 {config_path}")
+        with open(config_path, encoding="utf-8") as f:
+            config = json.load(f)
+
+    # ── Layer 2: MicroVault (encrypted, optional) ──────────────────────
+    mv = _get_microvault_session()
+    if mv is not None:
+        print("[*] MicroVault: conectado.")
+        for service in SAMPLE_CONFIG:
+            if not config.get(service):
+                val = _get_from_microvault(service)
+                if val:
+                    config[service] = val
+
+    # ── Layer 3: Environment variables (highest priority) ─────────────
+    for service, env_var in ENV_VAR_MAP.items():
+        val = os.environ.get(env_var, "").strip()
+        if val:
+            config[service] = val
+
+    # ── If nothing configured, guide the user ─────────────────────────
+    has_any = any(
+        isinstance(v, str) and len(v) > 5
+        for k, v in config.items() if k in SAMPLE_CONFIG
+    )
+    if not has_any:
+        print("[!] No se encontraron API keys configuradas.")
+        print(f"    Opciones:")
+        print(f"    1. MicroVault:  microvault add <servicio>")
+        print(f"    2. Variables de entorno: export MEXICOSINT_GEOAPIFY_API_KEY=tu_key")
+        print(f"    3. Archivo JSON: crear {config_path} con tus keys")
+        print(f"    Servicios: {', '.join(SAMPLE_CONFIG)}")
+        if not config_path.exists():
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(SAMPLE_CONFIG, f, indent=2, ensure_ascii=False)
+            os.chmod(config_path, stat.S_IRUSR | stat.S_IWUSR)
+            print(f"    Archivo de ejemplo creado: {config_path}")
         raise SystemExit(0)
 
-    config_stat = config_path.stat()
-    current_mode = config_stat.st_mode & 0o777
-    if current_mode != 0o600:
-        print(f"[!] ADVERTENCIA: Permisos del config son {oct(current_mode)}, deberian ser 0o600.")
-        print(f"    Ejecuta: chmod 600 {config_path}")
-
-    with open(config_path, encoding="utf-8") as f:
-        return json.load(f)
+    return config
 
 
 def check_keys(config: dict, dummy_mode: bool = False) -> list[str]:
@@ -68,7 +166,15 @@ def check_keys(config: dict, dummy_mode: bool = False) -> list[str]:
             print(f"    {key:30} OK (dummy)")
             active.append(key)
         elif isinstance(value, str) and len(value) > 5:
-            print(f"    {key:30} OK (presente)")
+            # Show source
+            env_var = ENV_VAR_MAP.get(key, "")
+            if env_var and os.environ.get(env_var, "").strip():
+                source = "env var"
+            elif _get_from_microvault(key):
+                source = "MicroVault"
+            else:
+                source = "JSON config"
+            print(f"    {key:30} OK ({source})")
             active.append(key)
         else:
             print(f"    {key:30} FALTANTE")
@@ -79,6 +185,19 @@ def check_keys(config: dict, dummy_mode: bool = False) -> list[str]:
 
 
 def get_api_key(config: dict, key: str) -> str:
+    # 1. Environment variable (highest priority)
+    env_var = ENV_VAR_MAP.get(key, "")
+    if env_var:
+        val = os.environ.get(env_var, "").strip()
+        if val:
+            return val
+
+    # 2. MicroVault
+    val = _get_from_microvault(key)
+    if val:
+        return val
+
+    # 3. JSON config (with legacy alias support)
     if config.get(key):
         return config[key]
     legacy = {alias: canonical for alias, canonical in SERVICE_ALIASES.items() if canonical == key}

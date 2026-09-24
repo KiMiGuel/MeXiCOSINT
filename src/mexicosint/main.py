@@ -99,10 +99,14 @@ except ImportError:
 try:
     from rich.console import Console
     from rich.table import Table
+    from rich.rule import Rule
     from rich import box
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
+
+# Shared Rich console (one instance for all output sections)
+_console = Console() if RICH_AVAILABLE else None
 
 CONFIG_PATH = config_store.CONFIG_PATH
 OUTPUT_DIR = Path("output")
@@ -994,14 +998,12 @@ def _rich_or_plain(rich_func, plain_func):
 
 
 def rich_print_subscriber(result: ScanResult):
-    console = Console()
     table = Table(title="📋 INFORMACION DEL SUSCRIPTOR", box=box.HEAVY_EDGE,
                   title_style="bold cyan", border_style="bright_blue", show_lines=True)
     table.add_column("Campo", style="bold yellow", width=28)
     table.add_column("Valor", style="bold white", width=50)
     table.add_row("Scan ID", result.scan_id)
     table.add_row("Timestamp (UTC)", result.scan_timestamp)
-    table.add_row("", "")
     table.add_row("MSISDN (E.164)", f"[bold]{result.e164}[/bold]")
     table.add_row("Valido", "[green]SI[/green]" if result.valid else "[red]NO[/red]")
     table.add_row("Region (phonenumbers)", result.region_phonenumbers or "—")
@@ -1024,8 +1026,8 @@ def rich_print_subscriber(result: ScanResult):
         if result.numverify_line_type not in ("", None, "unknown", "UNKNOWN")
         else result.local_line_type or "—"
     )
-    console.print()
-    console.print(table)
+    _console.print()
+    _console.print(table)
 
 
 def plain_print_subscriber(result: ScanResult):
@@ -1051,7 +1053,6 @@ def plain_print_subscriber(result: ScanResult):
 
 
 def rich_print_api_results(result: ScanResult):
-    console = Console()
     table = Table(title="🌐 RESULTADOS DE APIs", box=box.ROUNDED,
                   border_style="green", show_lines=True)
     table.add_column("Fuente", style="bold white", width=18)
@@ -1084,8 +1085,8 @@ def rich_print_api_results(result: ScanResult):
             result.ipqualityscore_data.get("carrier") or "—",
             result.ipqualityscore_data.get("line_type") or "—",
         )
-    console.print()
-    console.print(table)
+    _console.print()
+    _console.print(table)
 
 
 def plain_print_api_results(result: ScanResult):
@@ -1109,7 +1110,6 @@ def plain_print_api_results(result: ScanResult):
 
 
 def rich_print_consensus(result: ScanResult):
-    console = Console()
     if not result.all_votes:
         return
     table = Table(title="🗳️  EVIDENCIA DE LOCALIDAD", box=box.ROUNDED,
@@ -1118,13 +1118,12 @@ def rich_print_consensus(result: ScanResult):
     table.add_column("Ciudad / Region", style="green", width=30)
     for v in result.all_votes:
         table.add_row(v.source, v.city)
-    table.add_row("", "")
     table.add_row("[bold green]ESTADO[/bold green]",
                   f"[bold green]{result.evidence_state}[/bold green]")
     table.add_row("[bold green]LOCALIDAD[/bold green]",
                   f"[bold green]{result.consensus_city or '—'}[/bold green]")
-    console.print()
-    console.print(table)
+    _console.print()
+    _console.print(table)
 
 
 def plain_print_consensus(result: ScanResult):
@@ -1139,7 +1138,6 @@ def plain_print_consensus(result: ScanResult):
 
 
 def rich_print_geo(result: ScanResult):
-    console = Console()
     table = Table(title="🗺️  GEOLOCALIZACION APROXIMADA", box=box.ROUNDED,
                   border_style="magenta", show_lines=True)
     table.add_column("Campo", style="bold yellow", width=28)
@@ -1158,9 +1156,9 @@ def rich_print_geo(result: ScanResult):
     table.add_row("Geoapify address",
                   (result.geoapify_address[:70] + "...") if result.geoapify_address else "—")
     table.add_row("Direccion (Nominatim)", (result.nominatim_address[:70] + "...") if result.nominatim_address else "—")
-    console.print()
-    console.print(table)
-    console.print("[dim]Nota: localidad de numeracion; NO GPS en tiempo real ni ubicacion del suscriptor.[/dim]")
+    _console.print()
+    _console.print(table)
+    _console.print("[dim]Nota: localidad de numeracion; NO GPS en tiempo real ni ubicacion del suscriptor.[/dim]")
 
 
 def plain_print_geo(result: ScanResult):
@@ -1183,15 +1181,14 @@ def plain_print_geo(result: ScanResult):
 
 
 def rich_print_osint_links(links: dict):
-    console = Console()
     table = Table(title="🔗 ENLACES DE INVESTIGACION (OSINT)", box=box.ROUNDED,
                   border_style="blue", show_lines=True)
     table.add_column("Plataforma", style="bold white", width=22)
     table.add_column("URL", style="cyan")
     for name, url in links.items():
         table.add_row(name, url)
-    console.print()
-    console.print(table)
+    _console.print()
+    _console.print(table)
 
 
 def plain_print_osint_links(links: dict):
@@ -1202,7 +1199,6 @@ def plain_print_osint_links(links: dict):
 
 
 def rich_print_report(result: ScanResult):
-    console = Console()
     table = Table(title="📁 REPORTE EXPORTADO", box=box.ROUNDED,
                   border_style="yellow", show_lines=True)
     table.add_column("Campo", style="bold yellow", width=28)
@@ -1210,8 +1206,8 @@ def rich_print_report(result: ScanResult):
     table.add_row("Reporte JSON", result.report_path or "—")
     table.add_row("Mapa HTML", result.map_path or "—")
     table.add_row("Hash SHA-256", result.report_hash or "—")
-    console.print()
-    console.print(table)
+    _console.print()
+    _console.print(table)
 
 
 def plain_print_report(result: ScanResult):
@@ -1394,10 +1390,17 @@ async def _run_network_phase(result, normalized, e164, config, active):
     # Consensus
     run_consensus(result)
 
-    # Geocode only canonical concrete city/state locality.
+    # Geocode: try canonical locality first, fall back to LADA/consensus/phonenumbers.
     geo_target = result.canonical_locality_query
 
-    if not _is_concrete_locality(geo_target):
+    if not geo_target or not _is_concrete_locality(geo_target):
+        # Fallback chain: LADA region → consensus city → phonenumbers region
+        for candidate in (result.lada_region, result.consensus_city, result.region_phonenumbers):
+            if candidate and _is_concrete_locality(candidate):
+                geo_target = candidate if "," in candidate else f"{candidate}, Mexico"
+                break
+
+    if not geo_target or not _is_concrete_locality(geo_target):
         _trace_provider(result, "OpenCage", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
         _trace_provider(result, "Geoapify", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
         _trace_provider(result, "Nominatim", "skipped", normalized, locality_query=geo_target or "", note="no_concrete_locality")
@@ -1504,39 +1507,46 @@ def run_phone_scan(raw: str, config: dict, active: list) -> ScanResult:
     return result
 
 
+def _section_break():
+    """Thin separator between output sections."""
+    if RICH_AVAILABLE:
+        _console.print(Rule(style="dim"))
+    else:
+        print("─" * 60)
+
+
 def print_results(result: ScanResult):
     _rich_or_plain(
         lambda: rich_print_subscriber(result),
         lambda: plain_print_subscriber(result)
     )
+    _section_break()
     _rich_or_plain(
         lambda: rich_print_osint_links(result.osint_links),
         lambda: plain_print_osint_links(result.osint_links)
     )
+    _section_break()
     _rich_or_plain(
         lambda: rich_print_api_results(result),
         lambda: plain_print_api_results(result)
     )
+    _section_break()
     _rich_or_plain(
         lambda: rich_print_consensus(result),
         lambda: plain_print_consensus(result)
     )
     if result.consensus_city:
+        _section_break()
         _rich_or_plain(
             lambda: rich_print_geo(result),
             lambda: plain_print_geo(result)
         )
+    _section_break()
     _rich_or_plain(
         lambda: rich_print_report(result),
         lambda: plain_print_report(result)
     )
-
-    # FIX #5: Correct portability dates - implemented 2008, 10-digit dialing 2019
-    print("\n[!] ADVERTENCIA: La portabilidad numerica en Mexico se implemento en 2008.")
-    print("    El cambio a marcado de 10 digitos (sin 01, 044, 045) ocurrio en 2019.")
-    print("    El numero pudo haber sido portado a otra operadora o region.")
-    print("    La ubicacion mostrada es la del prefijo original/consenso de APIs,")
-    print("    NO garantiza la posicion exacta/GPS del telefono.")
+    print("\n[!] Ubicacion = prefijo de numeracion, NO ubicacion GPS del telefono.")
 
 
 def main(argv=None):

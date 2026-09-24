@@ -272,3 +272,33 @@ La herramienta no garantiza identidad, ubicación exacta, propiedad ni atribuci�
 ## Licencia 📜
 
 Este proyecto se publica bajo la licencia incluida en este repositorio.
+
+---
+
+## ¿Tienes MicroVault? 🔐
+
+Si ya usas [MicroVault](https://github.com/KiMiGuel/MicroVault) para guardar tus API keys, MeXiCOSINT puede leerlas directamente desde el vault cifrado — sin necesidad del archivo JSON.
+
+### Configuración
+
+Guarda tus keys en MicroVault con los nombres que MeXiCOSINT espera:
+
+```bash
+microvault add geoapify
+microvault add opencage
+microvault add ipqualityscore
+microvault add numverify
+microvault add abstract_phone_intelligence
+```
+
+Eso es todo. La próxima vez que ejecutes `mexicosint`, se conectará automáticamente a MicroVault (te pedirá la contraseña maestra una vez por sesión) y usará las keys del vault.
+
+### Orden de resolución de keys
+
+MeXiCOSINT busca tus API keys en este orden:
+
+1. **Variables de entorno** — `MEXICOSINT_GEOAPIFY_API_KEY`, `MEXICOSINT_OPENCAGE_API_KEY`, etc.
+2. **MicroVault** — vault cifrado en `~/.microvault/vault.enc`
+3. **Archivo JSON** — `~/.mx_osint_config.json` (opcional, solo si existe)
+
+Si tus keys están en MicroVault o en variables de entorno, el archivo JSON no se crea ni se necesita.
