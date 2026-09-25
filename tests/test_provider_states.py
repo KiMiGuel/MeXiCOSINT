@@ -16,7 +16,7 @@ from mexicosint.providers.status import (
 def test_configured_credentials_start_unverified_without_validation(monkeypatch):
     monkeypatch.setattr(
         "mexicosint.config.get_credential_source",
-        lambda service, config=None, dummy_mode=False: "json",
+        lambda service, config=None, dummy_mode=False: "microvault",
     )
     result = ScanResult()
 
@@ -30,7 +30,7 @@ def test_configured_credentials_start_unverified_without_validation(monkeypatch)
     assert result.provider_states["geoapify"].state == (
         ProviderState.CONFIGURED_UNVERIFIED
     )
-    assert result.provider_states["geoapify"].source == "json"
+    assert result.provider_states["geoapify"].source == "microvault"
     assert result.provider_states["geoapify"].request_attempted is False
     assert result.provider_states["opencage"].state == ProviderState.MISSING
 
@@ -102,7 +102,7 @@ def test_plain_provider_state_output_contains_no_credential_material(capsys):
     result = ScanResult()
     result.provider_states["geoapify"] = ProviderStatus(
         state=ProviderState.AUTH_FAILED,
-        source="environment",
+        source="microvault",
         transport="live_request",
         request_attempted=True,
         http_status=401,
@@ -114,7 +114,7 @@ def test_plain_provider_state_output_contains_no_credential_material(capsys):
 
     assert "Geoapify" in output
     assert "auth_failed" in output
-    assert "environment" in output
+    assert "microvault" in output
     assert "API_KEY" not in output
 
 

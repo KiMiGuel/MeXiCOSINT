@@ -1,314 +1,86 @@
 # Guía de uso
 
-Esta guía explica cómo usar **MeXiCOSINT** después de instalarlo.
-
-Para instalarlo, revisa primero:
-
-```text
-docs/INSTALL.md
-```
-
----
-
-## Ejecutar MeXiCOSINT
-
-Si instalaste desde PyPI (pipx o pip):
-
-```bash
-mexicosint <numero>
-```
-
-Si clonaste el repositorio, activa el entorno virtual y usa el launcher:
-
-```bash
-cd MeXiCOSINT
-source venv/bin/activate
-bash bin/mexicosint <numero>
-```
-
-También puedes ejecutar el módulo directamente:
-
-```bash
-PYTHONPATH=src python3 -m mexicosint <numero>
-```
-
----
-
-## Formato del número
-
-MeXiCOSINT está enfocado en números telefónicos mexicanos.
-
-Formato internacional recomendado:
-
-```text
-+52XXXXXXXXXX
-```
-
-También acepta formato nacional de 10 dígitos:
-
-```text
-XXXXXXXXXX
-```
-
-Ejemplos:
+## Escanear
 
 ```bash
 mexicosint 5512345678
 mexicosint +525512345678
 mexicosint "52-663-464-7308"
-mexicosint "(663) 464-7308"
 ```
 
-Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.
+Los números送上 se normalizan y validan; los proveedores opcionales se
+consultan solo cuando el perfil MicroVault `mexicosint` aporta su credencial.
 
----
-
-## Todas las opciones
+## Opciones
 
 ```text
-mexicosint [-h] [--no-microvault] [--microvault]
-           [--set-key SERVICIO KEY] [--list-keys] [--config-path]
-           [--version] [number]
+mexicosint [-h] [--microvault] [--version] [number]
 ```
 
 | Opción | Descripción |
 |---|---|
 | `number` | Número telefónico mexicano a escanear |
-| `--no-microvault` | Omite MicroVault aunque esté instalado |
-| `--microvault` | Fuerza la conexión a MicroVault (ya se detecta solo si está instalado) |
-| `--set-key SERVICIO KEY` | Guarda una API key en el archivo de configuración |
-| `--list-keys` | Muestra las API keys guardadas (enmascaradas) |
-| `--config-path` | Muestra la ruta del archivo de configuración |
+| `--microvault` | Fuerza la conexión al perfil `mexicosint` |
 | `--version` | Muestra la versión instalada |
-| `-h`, `--help` | Ayuda completa con ejemplos |
+| `-h`, `--help` | Muestra la ayuda |
 
----
+No existen opciones de MeXiCOSINT para crear, guardar o listar keys: la
+configuración se hace en MicroVault.
 
-## Ejemplos
-
-Escaneo básico:
-
-```bash
-mexicosint 5512345678
-```
-
-MicroVault se detecta y se usa automáticamente si lo tienes instalado — no requiere ninguna opción. Ver la sección "¿Tienes MicroVault?" en el README.
-
-## Gestión de API keys
-
-Ya no necesitas editar el archivo de configuración a mano.
-
-Guardar una key:
+## Configuración de credenciales
 
 ```bash
-mexicosint --set-key opencage TU_KEY
-mexicosint --set-key geoapify TU_KEY
-mexicosint --set-key ipqualityscore TU_KEY
-mexicosint --set-key abstract TU_KEY
-mexicosint --set-key numverify TU_KEY
+microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api
 ```
 
-Servicios válidos: `abstract` (alias de `abstract_phone_intelligence`), `numverify`, `opencage`, `geoapify`, `ipqualityscore`.
-
-Ver el estado de las keys (enmascaradas):
+El bridge consulta una sola vez:
 
 ```bash
-mexicosint --list-keys
+microvault env --profile mexicosint --json
 ```
 
-Ver dónde está el archivo de configuración:
+No hay fallback a `microvault env`, `microvault env <servicio>`, variables de
+entorno genéricas ni archivos JSON. Si falta el perfil, MicroVault o la
+interacción de contraseña, el enriquecimiento remoto no se realiza; usa
+`--microvault` para hacer fallar el escaneo ante un problema de conexión.
+
+## Modo dummy
+
+El flag interno `--dummy-test` usa fixtures en memoria y no requiere
+MicroVault, variables de entorno ni archivos de credenciales.
+
+## Funciones y proveedores
+
+- Validación, formato y análisis local.
+- Base oficial IFT/PNN y LADA sin red.
+- Enlaces OSINT.
+- Enriquecimiento opcional de AbstractAPI, NumVerify, IPQualityScore.
+- OpenCage y Geoapify para localidad concreta.
+- Nominatim como geocodificador final sin credenciales.
+
+## Seguridad
+
+No subas credenciales, `.env`, archivos JSON, reportes sensibles ni capturas
+que las contengan. MeXiCOSINT no crea ni modifica archivos JSON de
+configuración. Si una credencial fue expuesta, revócala en el proveedor y
+reemplázala en MicroVault.
+
+## Solución de problemas
+
+### API enrichment not available
+
+Comprueba que MicroVault esté instalado, que el perfil exista y que el comando
+se ejecute desde una terminal interactiva:
 
 ```bash
-mexicosint --config-path
+microvault profile
+mexicosint --microvault 5512345678
 ```
 
-El archivo se crea con permisos `0o600` (solo tu usuario puede leerlo).
+### IFT no aparece
 
----
-
-## Resultados: base oficial IFT/PNN
-
-Desde la versión 2.5.1, MeXiCOSINT incluye la **base oficial del Plan Nacional de Numeración (IFT)** integrada — más de 177,000 bloques de numeración asignada en México, consultada **offline** (sin internet, sin API keys).
-
-Cada escaneo puede mostrar:
-
-| Campo | Descripción |
-|---|---|
-| Operadora (IFT oficial) | Concesionario dueño del bloque, directo del regulador (ej. Telcel, Telmex, AT&T) |
-| Modalidad (IFT) | Línea fija, Móvil (CPP/MPP) o No geográfico |
-| Asignado (IFT) | Fecha en que el bloque fue asignado al concesionario |
-| Tipo de servicio (IFT) | Solo series no geográficas: 800 (cobro revertido), 900 (sobre cuota), etc. |
-
-### Series no geográficas
-
-Los números 200/300/500/800/900 se identifican automáticamente:
-
-| Serie | Tipo |
-|---|---|
-| 200 | Telefonía satelital |
-| 300 | Cobro compartido |
-| 500 | Números personales |
-| 800 | Cobro revertido (toll-free) |
-| 900 | **Sobre cuota — alerta roja, posible estafa** |
-
-### Actualizar la base IFT
-
-El IFT publica nuevas asignaciones periódicamente. Para actualizar la base local (requiere el repositorio clonado):
-
-```bash
-cd MeXiCOSINT
-python3 tools/update_ift_blocks.py
-```
-
-El script descarga el plan vigente desde sns.ift.org.mx y reconstruye la base. Con `--offline` reconstruye sin descargar.
-
----
-
-## Resultados generales
-
-Dependiendo de la configuración y API keys disponibles, un escaneo puede mostrar:
-
-* Validación del número y formato E.164
-* **Operadora, modalidad y fecha de asignación (IFT, offline)**
-* Región (phonenumbers) y referencia LADA
-* Operadora y ubicación reportadas por APIs (AbstractAPI, NumVerify, IPQualityScore) como evidencia de apoyo o conflicto
-* Estado estructurado de cada proveedor, su fuente de credencial y el resultado de la solicitud
-* Localidad canónica IFT/LADA con atribución clara de fuente
-* Enlaces de investigación OSINT
-* OpenCage, Geoapify o Nominatim para geocodificar la localidad IFT/LADA + mapa HTML
-* IPQualityScore para reputación y abuso telefónico
-* Reporte JSON exportado en `output/reports/`
-
-> Los enlaces OSINT completos también quedan guardados en el reporte JSON.
-
-### Documentación oficial y endpoints usados
-
-| Servicio | Endpoint de MeXiCOSINT | Documentación oficial |
-|---|---|---|
-| Abstract Phone Intelligence | `https://phoneintelligence.abstractapi.com/v1/` | https://docs.abstractapi.com/api/phone-intelligence |
-| NumVerify / APILayer | Legacy: `https://apilayer.net/api/validate`; fallback: `https://api.apilayer.com/number_verification/validate` | https://numverify.com/documentation / https://apilayer.com/marketplace/number_verification-api |
-| OpenCage | `https://api.opencagedata.com/geocode/v1/json` | https://opencagedata.com/api |
-| Geoapify | `https://api.geoapify.com/v1/geocode/search` | https://apidocs.geoapify.com/docs/geocoding/forward-geocoding/ |
-| IPQualityScore Phone Validation | `https://ipqualityscore.com/api/json/phone/{key}/{number}` | https://www.ipqualityscore.com/documentation/ |
-| Nominatim fallback | `https://nominatim.openstreetmap.org/search` | https://nominatim.org/release-docs/latest/api/Search/ |
-
-El adaptador de NumVerify conserva el endpoint clásico `access_key` porque la key configurada fue verificada con una respuesta real. APILayer también publica un marketplace endpoint más reciente; no se cambia automáticamente porque podría requerir otro tipo de credencial.
-
----
-
-## Sin API keys
-
-MeXiCOSINT funciona parcialmente sin keys:
-
-```text
-Sin API keys: validación, parsing local, base IFT completa, LADA, enlaces OSINT
-Con API keys: enriquecimiento adicional, geocodificación y reputación telefónica
-```
-
-La base IFT funciona siempre, con o sin keys.
-
----
-
-## Localidad y geocodificación
-
-La localidad mexicana se resuelve en este orden:
-
-1. Normaliza el número.
-2. Consulta exacta de bloque IFT.
-3. Ciudad/municipio y estado canónicos desde IFT.
-4. LADA solo como respaldo o evidencia de apoyo.
-5. Geocodificación únicamente de una consulta concreta: `<ciudad o municipio>, <estado>, Mexico`.
-
-AbstractAPI, NumVerify e IPQualityScore pueden aportar evidencia o conflicto, pero no reemplazan una localidad concreta de IFT/LADA. Valores vagos como `Mexico`, `NorthWest`, regiones genéricas, tipo de línea o país sin ciudad no se envían a geocodificadores.
-
-OpenCage y Geoapify se consultan **en paralelo** (con key); OpenCage sigue siendo el resultado primario. Nominatim queda como fallback final sin key.
-
----
-
-## Rendimiento (v2.5.3)
-
-Desde la versión 2.5.3 las llamadas de red son concurrentes:
-
-* Las APIs telefónicas (AbstractAPI, NumVerify, IPQualityScore) se consultan **en paralelo** con asyncio + aiohttp.
-* OpenCage y Geoapify geocodifican en paralelo; Nominatim sigue como respaldo final.
-* Las conexiones HTTPS se reutilizan (pooling de sesiones).
-* La normalización de localidades y la geocodificación Nominatim usan caché (menos trabajo repetido entre escaneos).
-
-No requiere configuración adicional: instala o actualiza normalmente (`pipx upgrade mexicosint`).
-
----
-
-## Enlaces OSINT
-
-Los enlaces generados usan variantes exactas del número: WhatsApp por `wa.me`, búsqueda Google del E.164, dígitos internacionales, dígitos nacionales, formato espaciado y búsquedas `site:` para Facebook, TikTok, X y Twitter.
-
----
-
-## Buenas prácticas
-
-* Verifica resultados con más de una fuente.
-* No trates resultados OSINT como evidencia absoluta.
-* No subas API keys a GitHub.
-* No publiques reportes con información sensible.
-* Un número reportado como "línea fija" de un concesionario mayorista que envía SMS publicitarios es un patrón común de spam.
-* Usa la herramienta únicamente en investigaciones autorizadas, autoauditoría o fines educativos.
-
----
-
-## Solución rápida de problemas
-
-### `mexicosint: command not found`
-
-Si instalaste con pipx:
-
-```bash
-pipx ensurepath
-```
-
-Cierra y abre la terminal.
-
-### Error de dependencias (instalación desde repo)
-
-```bash
-pip install -r requirements.txt
-```
-
-### API key no detectada
-
-```bash
-mexicosint --list-keys
-```
-
-Si falta alguna, agrégala con `--set-key`.
-
-### No aparece la información IFT
-
-La base IFT se incluye con el paquete. Si clonaste el repo y falta, regenera:
+La base viene incluida. Para regenerarla:
 
 ```bash
 python3 tools/update_ift_blocks.py --offline
 ```
-
-O descarga la versión vigente:
-
-```bash
-python3 tools/update_ift_blocks.py
-```
-
----
-
-## Estado
-
-Si todo está correcto:
-
-```bash
-mexicosint --version
-```
-
-debería mostrar la versión instalada, y:
-
-```bash
-mexicosint 5512345678
-```
-
-debería mostrar el banner, la información del número y la operadora oficial IFT.

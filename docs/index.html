@@ -235,8 +235,8 @@ mexicosint 5512345678</pre>
       </div>
       <div class="card">
         <img class="feature-icon" src="icons/microvault.svg" alt="Icono de bóveda cifrada">
-        <h3>MicroVault opcional</h3>
-        <p>Desbloquea el perfil <code>mexicosint</code> una vez por terminal. Las keys reales nunca se imprimen en el reporte.</p>
+        <h3>MicroVault requerido</h3>
+        <p>Desbloquea el perfil <code>mexicosint</code> para el enriquecimiento. Las keys reales nunca se imprimen en el reporte.</p>
       </div>
     </div>
   </div>
@@ -310,8 +310,8 @@ mexicosint 5512345678</pre>
       </div>
       <div class="step">
         <div class="n">03</div>
-        <h3>Opcional: API keys</h3>
-        <p><code>mexicosint --set-key opencage TU_KEY</code><br>Enriquecimiento extra cuando lo necesites.</p>
+        <h3>Configura MicroVault</h3>
+        <p><code>microvault profile mexicosint ...</code><br>Configura el backend cifrado para el enriquecimiento.</p>
       </div>
     </div>
   </div>
@@ -321,7 +321,7 @@ mexicosint 5512345678</pre>
   <div class="wrap">
     <p class="kicker">Llaves API</p>
     <h2>Potencia MeXiCOSINT al 100% con llaves API</h2>
-    <p class="lead">La base oficial del IFT y la validación local funcionan <b>sin configurar nada</b>. Con llaves API opcionales, MeXiCOSINT agrega validación, reputación, estados de proveedores y geocodificación de la localidad IFT/LADA. Nominatim queda como fallback sin clave. Esa localidad no es GPS ni ubicación del suscriptor.</p>
+    <p class="lead">La base oficial del IFT y la validación local funcionan sin configurar nada. El enriquecimiento remoto requiere el perfil <code>mexicosint</code> de MicroVault. Nominatim queda como fallback sin clave. Esa localidad no es GPS ni ubicación del suscriptor.</p>
 
     <div class="api">
       <div class="api-head">
@@ -340,10 +340,10 @@ mexicosint 5512345678</pre>
         <li>Abre el enlace de registro de AbstractAPI.</li>
         <li>Crea una cuenta y entra al panel de Phone Validation.</li>
         <li>Copia tu API key.</li>
-        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+        <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
       </ol>
       <div class="cmd"><span class="c"># guardar la llave una sola vez</span>
-mexicosint --set-key abstract TU_KEY</div>
+microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
       <p>Listo. A partir de ese momento, cada escaneo incluye la evidencia de AbstractAPI cuando el proveedor responda.</p>
       <a class="signup" href="https://app.abstractapi.com/users/signup?target=/api/phone-validation/pricing/select">Crear cuenta gratis en AbstractAPI</a>
     </div>
@@ -366,10 +366,10 @@ mexicosint --set-key abstract TU_KEY</div>
         <li>Llena el formulario: nombre en <code>"Full Name"</code>, correo en <code>"Email"</code> y contraseña en <code>"Password"</code>.</li>
         <li>Pulsa <code>"Sign Up"</code>. NumVerify crea tu cuenta al instante, sin confirmación de correo.</li>
         <li>Entra a tu panel (<code>"Dashboard"</code>): tu llave aparece arriba como <code>"Your API Access Key"</code>. Cópiala.</li>
-        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+        <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
       </ol>
       <div class="cmd"><span class="c"># guardar la llave una sola vez</span>
-mexicosint --set-key numverify TU_KEY</div>
+microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
       <p>Listo. NumVerify se usará automáticamente cuando su key exista.</p>
       <a class="signup" href="https://numverify.com/signup/free/monthly">Crear cuenta gratis en NumVerify</a>
     </div>
@@ -385,7 +385,7 @@ mexicosint --set-key numverify TU_KEY</div>
       </div>
       <p><b>Qué hace:</b> geocodifica la consulta canónica IFT/LADA con formato <code>ciudad, estado, Mexico</code>.</p>
       <p><b>Importante:</b> solo se geocodifican localidades concretas. Valores vagos como país, región o etiquetas genéricas se omiten.</p>
-      <div class="cmd">mexicosint --set-key opencage TU_KEY</div>
+      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
     </div>
 
     <div class="api">
@@ -404,9 +404,9 @@ mexicosint --set-key numverify TU_KEY</div>
         <li>Abre el registro de Geoapify y crea una cuenta.</li>
         <li>Entra a tus proyectos y crea o selecciona un proyecto.</li>
         <li>Copia la API key del proyecto.</li>
-        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+        <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
       </ol>
-      <div class="cmd">mexicosint --set-key geoapify TU_API_KEY</div>
+      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
       <a class="signup" href="https://myprojects.geoapify.com/register">Crear cuenta en Geoapify</a>
     </div>
 
@@ -427,9 +427,9 @@ mexicosint --set-key numverify TU_KEY</div>
         <li>Verifica el correo si el sitio lo solicita.</li>
         <li>Abre el panel de tu cuenta.</li>
         <li>Localiza y copia la API key privada.</li>
-        <li>Regresa a tu terminal y guárdala en MeXiCOSINT:</li>
+        <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
       </ol>
-      <div class="cmd">mexicosint --set-key ipqualityscore TU_API_KEY</div>
+      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
       <a class="signup" href="https://www.ipqualityscore.com/create-account">Registrarse en IPQualityScore</a>
     </div>
   </div>
@@ -437,14 +437,14 @@ mexicosint --set-key numverify TU_KEY</div>
 
 <section id="microvault">
   <div class="wrap">
-    <p class="kicker">Opcional · Si tienes MicroVault</p>
+    <p class="kicker">MicroVault · Backend requerido</p>
     <h2><img class="section-icon" src="icons/microvault.svg" alt="Icono de MicroVault">Guarda tus llaves cifradas con MicroVault 🔐</h2>
-    <p class="lead"><a href="https://kimiguel.github.io/MicroVault/">MicroVault</a> es una bóveda local y cifrada para tus API keys: un solo archivo, una sola contraseña maestra, sin nube ni cuentas. Si ya la usas, MeXiCOSINT la detecta automáticamente y puede leer tus llaves directo de la bóveda, sin archivo JSON. Y si <b>no</b> tienes MicroVault, no cambia nada: MeXiCOSINT sigue funcionando normal con <code>~/.mx_osint_config.json</code> o variables de entorno.</p>
+    <p class="lead"><a href="https://kimiguel.github.io/MicroVault/">MicroVault</a> es el backend local y cifrado de credenciales de MeXiCOSINT. Para el enriquecimiento normal se requiere el perfil <code>mexicosint</code>, consultado mediante el bridge local. MeXiCOSINT no usa variables de entorno genéricas ni archivos JSON.</p>
     <div class="steps">
       <div class="step">
         <div class="n">A</div>
-        <h3>Cargar una vez por terminal</h3>
-        <p><code>eval "$(microvault env --profile mexicosint)"</code><br>Desbloquea el perfil una vez por terminal; luego usa MeXiCOSINT normalmente.</p>
+        <h3>Crear el perfil aislado</h3>
+        <p><code>microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api</code><br>El bridge lo consulta estrictamente una vez por ejecución.</p>
       </div>
       <div class="step">
         <div class="n">B</div>

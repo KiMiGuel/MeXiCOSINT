@@ -24,9 +24,6 @@ class ScanSettings:
 
     dummy_mode: bool = False
     output_dir: Path = field(default_factory=lambda: Path("output"))
-    config_path: Path = field(
-        default_factory=lambda: Path.home() / ".mx_osint_config.json"
-    )
     default_timeout: float = 15
     _session: requests.Session | None = field(default=None, repr=False)
     nominatim_cache: dict[str, LocalityEvidence | None] = field(

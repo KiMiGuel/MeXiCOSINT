@@ -28,12 +28,10 @@ def test_settings_manage_output_directories(tmp_path):
     assert settings.get_output_path("result.json") == tmp_path / "result.json"
 
 
-def test_settings_keep_dummy_and_config_state_isolated(tmp_path):
-    config_path = tmp_path / "config.json"
-    first = ScanSettings(dummy_mode=True, config_path=config_path)
-    second = ScanSettings(dummy_mode=False, config_path=tmp_path / "other.json")
+def test_settings_keep_dummy_and_runtime_state_isolated(tmp_path):
+    first = ScanSettings(dummy_mode=True, output_dir=tmp_path / "dummy")
+    second = ScanSettings(dummy_mode=False, output_dir=tmp_path / "live")
 
     assert first.dummy_mode is True
     assert second.dummy_mode is False
-    assert first.config_path == config_path
-    assert second.config_path != config_path
+    assert first.output_dir != second.output_dir

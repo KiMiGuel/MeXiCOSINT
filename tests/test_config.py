@@ -1,81 +1,54 @@
-from pathlib import Path
-
-from mexicosint.cli import main as cli_main
 import mexicosint.config as config
 import mexicosint.main as app
 
 
-def test_dummy_config_ignores_existing_disk_config(monkeypatch, tmp_path):
-    config_path = tmp_path / "config.json"
-    config_path.write_text('{"legacy_one": "old", "legacy_two": "old"}', encoding="utf-8")
-    settings = app.ScanSettings(
-        dummy_mode=True,
-        config_path=Path(config_path),
-    )
+def test_dummy_config_is_in_memory_and_has_no_file_dependency(tmp_path):
+    settings = app.ScanSettings(dummy_mode=True)
 
-    config = app.init_config(settings=settings)
+    resolved = app.init_config(settings=settings)
 
-    assert "geoapify" in config
-    assert "ipqualityscore" in config
-    assert "legacy_one" not in config
-    assert "legacy_two" not in config
+    assert resolved == {service: f"dummy_key_{service}" for service in app.SAMPLE_CONFIG}
+    assert not list(tmp_path.iterdir())
 
 
-def test_all_environment_credentials_skip_microvault_auto_connect(monkeypatch, tmp_path):
-    config_path = tmp_path / "config.json"
-    config_path.write_text("{}", encoding="utf-8")
-    env_names = {
-        "abstract_phone_intelligence": "ABSTRACT_API_KEY",
-        "numverify": "NUMVERIFY_API_KEY",
-        "opencage": "OPENCAGE_API_KEY",
-        "geoapify": "GEOAPIFY_API_KEY",
-        "ipqualityscore": "IPGS_API_KEY",
-    }
-    for service, name in env_names.items():
-        monkeypatch.setenv(name, f"env-{service}")
+def test_normal_config_uses_only_microvault_profile(monkeypatch):
+    class Bridge:
+        _connected = True
 
-    class AvailableBridge:
-        _connected = False
-        _available = True
+        def is_available(self):
+            return True
 
-    connect_calls = []
-    monkeypatch.setattr("mexicosint.config._get_microvault_bridge", lambda: AvailableBridge())
-    monkeypatch.setattr(
-        "mexicosint.config.connect_microvault",
-        lambda: connect_calls.append(True) or False,
-    )
+        def connect_result(self):
+            class Result:
+                state = type("State", (), {"value": "connected"})()
+            return Result()
 
-    resolved = app.init_config(
-        settings=app.ScanSettings(config_path=Path(config_path))
-    )
+        def is_connected(self):
+            return True
 
-    assert connect_calls == []
-    assert resolved == {service: f"env-{service}" for service in env_names}
+    monkeypatch.setattr(config, "_get_microvault_bridge", lambda: Bridge())
+    monkeypatch.setattr(config, "_get_from_microvault", lambda service: {
+        "geoapify": "vault-key",
+    }.get(service, ""))
+
+    assert config.init_config() == {"geoapify": "vault-key"}
 
 
-def test_legacy_abstract_alias_reports_json_source(monkeypatch):
-    monkeypatch.setattr("mexicosint.config._from_env", lambda service: "")
-    monkeypatch.setattr("mexicosint.config._get_from_microvault", lambda service: "")
+def test_legacy_abstract_alias_is_not_a_plaintext_source(monkeypatch):
+    monkeypatch.setattr(config, "_get_from_microvault", lambda service: "")
 
-    source = config.get_credential_source(
+    assert config.get_credential_source(
         "abstract_phone_intelligence",
         {"abstract": "legacy-key"},
-    )
-
-    assert source == "json"
+    ) == "missing"
 
 
-def test_cli_set_key_preserves_canonical_provider_workflow(monkeypatch, tmp_path, capsys):
-    config_path = tmp_path / "config.json"
-    monkeypatch.setattr(app, "CONFIG_PATH", Path(config_path))
+def test_normal_config_ignores_environment_and_json(tmp_path, monkeypatch):
+    config_file = tmp_path / "config.json"
+    config_file.write_text('{"geoapify": "json-key"}', encoding="utf-8")
+    monkeypatch.setenv("GEOAPIFY_API_KEY", "env-key")
 
-    assert cli_main(["--set-key", "ipqualityscore", "test_key_value"]) == 0
-    assert config_path.stat().st_mode & 0o777 == 0o600
-
-    saved = config_path.read_text(encoding="utf-8")
-    assert '"ipqualityscore": "test_key_value"' in saved
-
-    assert cli_main(["--list-keys"]) == 0
-    listed = capsys.readouterr().out
-    assert "ipqualityscore" in listed
-    assert "test_key_value" not in listed
+    assert config.init_config() == {}
+    assert config.get_api_key({"geoapify": "json-key"}, "geoapify") == "json-key"
+    assert config.get_credential_source("geoapify", {"geoapify": "json-key"}) == "microvault"
+    assert config_file.read_text(encoding="utf-8") == '{"geoapify": "json-key"}'

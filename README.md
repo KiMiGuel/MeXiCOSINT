@@ -49,7 +49,7 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - Series no geográficas 200/300/500/800/900 con alerta de números premium (900)
 - Estado estructurado por proveedor: `missing`, `not_requested`, `configured_unverified`, `request_success`, `no_result`, `auth_failed`, `quota_exceeded` y más
 - Fuente de geocodificación seleccionada visible en el resultado
-- Gestión de API keys desde la CLI (`--set-key`, `--list-keys`, `--config-path`)
+- **MicroVault como único backend de credenciales** para el enriquecimiento normal; se requiere el perfil `mexicosint`
 - **Rendimiento concurrente (v2.5.3)**: llamadas a APIs en paralelo (asyncio + aiohttp), pooling de conexiones HTTPS y memoización de normalización y geocodificación
 - Soporte para reportes o salidas generadas según la versión
 - Modo telefónico únicamente: sin proveedores IP ni escaneo IP
@@ -178,17 +178,8 @@ mexicosint 5512345678
 mexicosint +525512345678
 ```
 
-Gestión de API keys desde la CLI:
-
-```bash
-mexicosint --set-key opencage TU_KEY
-mexicosint --set-key geoapify TU_KEY
-mexicosint --set-key ipqualityscore TU_KEY
-mexicosint --set-key abstract TU_KEY
-mexicosint --set-key numverify TU_KEY
-mexicosint --list-keys
-mexicosint --config-path
-```
+La CLI ya no ofrece configuración de credenciales. La única fuente para
+proveedores es MicroVault, mediante el perfil `mexicosint`.
 
 Si clonaste el repositorio, también puedes usar el launcher sin instalar el comando global:
 
@@ -202,7 +193,8 @@ O ejecutar el módulo del paquete:
 PYTHONPATH=src python3 -m mexicosint 5512345678
 ```
 
-Si tienes MicroVault instalado (ver más abajo, "¿Tienes MicroVault?"), se detecta y se usa automáticamente — no hace falta ninguna flag; `--no-microvault` lo omite y `--microvault` fuerza la conexión.
+MicroVault se detecta y se usa automáticamente para el enriquecimiento normal.
+La única fuente es el perfil `mexicosint`; `--microvault` fuerza la conexión.
 
 ---
 
@@ -241,7 +233,7 @@ Las API keys deben mantenerse en tu entorno local. No las subas a GitHub.
 
 ## Seguridad 🔒
 
-No subas archivos como:
+No subas archivos que contengan credenciales o datos sensibles:
 
 ```text
 .env
@@ -249,20 +241,11 @@ No subas archivos como:
 config.json
 secrets.json
 keys.json
-.mx_osint_config.json
+credentials.json
 ```
 
-Ruta local recomendada para configuración:
-
-```text
-~/.mx_osint_config.json
-```
-
-Permisos recomendados:
-
-```bash
-chmod 600 ~/.mx_osint_config.json
-```
+MeXiCOSINT no crea ni lee un archivo JSON de credenciales. Las keys se
+administran exclusivamente en MicroVault.
 
 ---
 
@@ -276,24 +259,28 @@ La herramienta no garantiza identidad, ubicación exacta, propiedad ni atribuci�
 
 ---
 
-## ¿Tienes MicroVault? 🔐
+## MicroVault requerido para enriquecimiento 🔐
 
-[MicroVault](https://github.com/KiMiGuel/MicroVault) es una bóveda local y cifrada para tus API keys: un solo archivo, una sola contraseña maestra, sin nube ni cuentas. Tus keys se guardan cifradas en disco y solo se descifran cuando las necesitas.
+[MicroVault](https://github.com/KiMiGuel/MicroVault) es el backend local y
+cifrado de credenciales. Los escaneos normales requieren el perfil
+`mexicosint`; la CLI lo obtiene mediante:
 
-Si **no** tienes MicroVault, no te preocupes: MeXiCOSINT sigue funcionando normalmente con el archivo JSON (`~/.mx_osint_config.json`) o con variables de entorno — puedes saltarte esta sección.
+```bash
+microvault env --profile mexicosint --json
+```
 
-Si nunca lo has configurado, esto es todo lo que necesitas, de cero:
+No se aceptan variables de entorno genéricas, JSON plano, un vault completo ni
+consultas por servicio como fuente alternativa.
 
-### 1. Instala MicroVault
+Instala/configura MicroVault y crea el perfil:
 
 ```bash
 pip install microvault
 ```
 
-### 2. Guarda las 5 keys que usa MeXiCOSINT
+### 2. Configura los servicios que quieras usar
 
-Estos son los nombres **exactos** que MeXiCOSINT busca en la bóveda — no son los mismos que los nombres de `--set-key`:
-
+Estos son los nombres de servicio que MeXiCOSINT reconoce para proveedores opcionales. Solo necesitas guardar los que realmente utilizarás:
 ```bash
 microvault add geoapify
 microvault add opencage_api
@@ -318,30 +305,12 @@ microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_
 mexicosint 5512345678
 ```
 
-Nada más. MeXiCOSINT detecta MicroVault automáticamente — no necesitas `--microvault`. Si las keys no están ya en el entorno, pide la contraseña maestra **una vez por cada proceso de MeXiCOSINT** y carga las 5 keys del perfil juntas.
-
-#### Si vas a hacer muchas búsquedas
-
-Desbloquea el perfil una vez **por cada terminal abierta**:
-
-```bash
-eval "$(microvault env --profile mexicosint)"
-```
-
-Después puedes ejecutar MeXiCOSINT tantas veces como quieras sin volver a escribir la contraseña:
-
-```bash
-mexicosint NUMERO_1
-mexicosint NUMERO_2
-mexicosint NUMERO_3
-```
-
-`eval` no guarda las keys en un archivo: solo las coloca en las variables de entorno de esa terminal. Se olvidan al cerrar la terminal.
+Nada más. MeXiCOSINT detecta MicroVault automáticamente. `--microvault` fuerza
+la conexión y hace fallar el escaneo si el perfil no puede abrirse.
 
 Casos especiales:
 
 ```bash
-mexicosint --no-microvault 5512345678   # omite MicroVault aunque este instalado
 mexicosint --microvault 5512345678      # fuerza la conexion (falla si no puede)
 ```
 
@@ -359,15 +328,8 @@ Si MicroVault necesita abrir su prompt pero MeXiCOSINT se ejecuta desde una term
 
 Si tu bóveda usa otros nombres, puedes ajustarlos en `src/mexicosint/config.py` (variable `MICROVAULT_SERVICES`) o crear un alias en MicroVault con el comando `microvault alias`.
 
-### Orden de resolución de keys
-
-MeXiCOSINT busca tus API keys en este orden:
-
-1. **Variables de entorno** — `MEXICOSINT_GEOAPIFY_API_KEY`, `GEOAPIFY_API_KEY`, etc.
-2. **MicroVault** — bóveda cifrada en `~/.microvault/vault.enc`, auto-detectada (sin flag)
-3. **Archivo JSON** — `~/.mx_osint_config.json` (opcional)
-
-Si tus keys están en MicroVault o en variables de entorno, el archivo JSON no se crea ni se necesita.
+El bridge es estricto: consulta el perfil una vez y falla cerrado si el perfil
+no existe, la respuesta es inválida o MicroVault no está disponible.
 
 ---
 

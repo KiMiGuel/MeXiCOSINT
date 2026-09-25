@@ -1,284 +1,73 @@
 # Guía de instalación
 
-Esta guía explica cómo instalar **MeXiCOSINT** en Kali Linux, Debian, Ubuntu y sistemas similares.
-
----
-
-## Instalación desde PyPI (recomendada)
-
-MeXiCOSINT está publicado en PyPI, así que no necesitas clonar el repositorio para usarlo.
-
-### Opción A: pipx (recomendada para Kali)
-
-`pipx` instala la herramienta en un entorno aislado y deja el comando `mexicosint` disponible globalmente, sin tocar el Python del sistema.
-
-En Kali Linux moderno esto es importante: `pip install` global está bloqueado por PEP 668 (`externally-managed-environment`), y `pipx` es la solución oficial.
-
-Instala pipx:
+## Instalación desde PyPI
 
 ```bash
-sudo apt update
 sudo apt install -y pipx
-```
-
-Instala MeXiCOSINT:
-
-```bash
 pipx install mexicosint
+mexicosint 5512345678
 ```
 
-Ejecuta:
-
-```bash
-mexicosint
-```
-
-Actualizar a una nueva versión:
+Para actualizar:
 
 ```bash
 pipx upgrade mexicosint
 ```
 
-Desinstalar:
-
-```bash
-pipx uninstall mexicosint
-```
-
-### Opción B: pip directo
-
-En sistemas sin PEP 668:
-
-```bash
-pip install mexicosint
-```
-
-En Kali, si insistes en pip global:
-
-```bash
-pip install mexicosint --break-system-packages
-```
-
-> Se recomienda `pipx` en su lugar. `--break-system-packages` puede romper paquetes Python del sistema.
-
----
-
-## Instalación desde el repositorio (para desarrollo)
-
-Usa este método si quieres modificar el código o colaborar.
-
-### Requisitos
-
-```bash
-sudo apt update
-sudo apt install -y python3 python3-pip python3-venv git
-```
-
-### Clonar el repositorio
+## Instalación desde el repositorio
 
 ```bash
 git clone https://github.com/KiMiGuel/MeXiCOSINT.git
 cd MeXiCOSINT
-```
-
-### Crear entorno virtual
-
-```bash
 python3 -m venv venv
 source venv/bin/activate
-```
-
-Cuando el entorno virtual esté activo, tu terminal debería mostrar algo parecido a:
-
-```text
-(venv) usuario@equipo:~/MeXiCOSINT$
-```
-
-### Instalar dependencias
-
-```bash
 pip install -r requirements.txt
-```
-
-Opcionalmente, instala el paquete en modo editable:
-
-```bash
 pip install -e .
+bash bin/mexicosint 5512345678
 ```
 
-### Ejecutar desde el repositorio
+## Credenciales
 
-Con el launcher incluido:
+El enriquecimiento normal requiere [MicroVault](https://github.com/KiMiGuel/MicroVault)
+y su perfil `mexicosint`:
 
 ```bash
-bash bin/mexicosint
+microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api
 ```
 
-O directamente como módulo:
+MeXiCOSINT no lee variables de entorno genéricas ni archivos JSON, y no crea un
+archivo de configuración de credenciales. El bridge usa estrictamente:
 
 ```bash
-PYTHONPATH=src python3 -m mexicosint
+microvault env --profile mexicosint --json
 ```
 
-### Salir del entorno virtual
+La contraseña maestra se solicita en la terminal interactiva. Para una ejecución
+sin enriquecimiento remoto:
 
 ```bash
-deactivate
+mexicosint 5512345678
 ```
 
----
+## Seguridad
 
-## Configuración de API keys
-
-MeXiCOSINT puede usar API keys externas para mejorar los resultados.
-
-El archivo recomendado para configuración local es:
-
-```text
-~/.mx_osint_config.json
-```
-
-Este archivo debe quedarse en tu computadora.
-
-No debe subirse a GitHub.
-
----
-
-## Proteger archivo de configuración
-
-Para proteger el archivo de configuración local:
-
-```bash
-chmod 600 ~/.mx_osint_config.json
-```
-
----
-
-## Actualizar MeXiCOSINT
-
-Si instalaste con pipx:
-
-```bash
-pipx upgrade mexicosint
-```
-
-Si instalaste con pip:
-
-```bash
-pip install --upgrade mexicosint
-```
-
-Si clonaste el repositorio:
-
-```bash
-git pull
-pip install -r requirements.txt
-```
-
----
-
-## Instalación rápida
-
-Resumen completo (método pipx):
-
-```bash
-sudo apt update
-sudo apt install -y pipx
-pipx install mexicosint
-mexicosint
-```
-
-Resumen completo (método repositorio):
-
-```bash
-sudo apt update
-sudo apt install -y python3 python3-pip python3-venv git
-git clone https://github.com/KiMiGuel/MeXiCOSINT.git
-cd MeXiCOSINT
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-bash bin/mexicosint
-```
-
----
-
-## Notas importantes
-
-- No subas API keys a GitHub.
-- Usa pipx o un entorno virtual para evitar romper paquetes del sistema.
-- En Kali Linux moderno, evita instalar paquetes Python globalmente con `sudo pip`.
-- Los resultados OSINT deben verificarse con más de una fuente.
-- La herramienta está pensada para investigación autorizada, autoauditoría y fines educativos.
-
----
+No subas `.env`, archivos JSON, reportes sensibles ni credenciales al repositorio.
+Las keys se administran únicamente dentro de MicroVault.
 
 ## Problemas comunes
 
-### `python3: command not found`
-
-Instala Python:
-
-```bash
-sudo apt install -y python3
-```
-
-### `pip: command not found`
-
-Instala pip:
-
-```bash
-sudo apt install -y python3-pip
-```
-
-### `pipx: command not found`
-
-Instala pipx:
-
-```bash
-sudo apt install -y pipx
-```
-
-Si el comando `mexicosint` no aparece después de instalar con pipx, asegura el PATH:
+Si `mexicosint` no aparece tras `pipx install`:
 
 ```bash
 pipx ensurepath
 ```
 
-Cierra y vuelve a abrir la terminal después.
-
-### `error: externally-managed-environment`
-
-Estás intentando usar `pip install` global en un sistema con PEP 668 (Kali/Debian/Ubuntu modernos). Usa `pipx install mexicosint` en su lugar.
-
-### Error creando el entorno virtual
-
-Instala venv:
-
-```bash
-sudo apt install -y python3-venv
-```
-
-### Error de permisos
-
-Asegúrate de estar dentro de la carpeta del proyecto y de tener permisos sobre los archivos.
-
-```bash
-pwd
-```
-
-```bash
-ls -la
-```
-
----
+Cierra y vuelve a abrir la terminal. Para una instalación desde el repositorio,
+activa el entorno virtual antes de ejecutar el launcher.
 
 ## Estado
 
-Si la instalación terminó correctamente, deberías poder ejecutar:
-
 ```bash
-mexicosint
+mexicosint --version
+mexicosint 5512345678
 ```
-
-Y ver el inicio de MeXiCOSINT en la terminal.

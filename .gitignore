@@ -19,13 +19,13 @@ dist/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Local config / API keys
+# Local secrets and credentials (MeXiCOSINT uses MicroVault only)
 .env
 *.env
 config.json
 secrets.json
 keys.json
-.mx_osint_config.json
+credentials.json
 *.key
 *.pem
 
@@ -55,7 +55,6 @@ src/mexicosint/data/raw_pnn/
 
 # Local planning/notes — kept off the repo
 Future_of_MeXiCOSINT.md
-MICROSTACKS.md
 READFIRST.md
 mexicosint_refactoring_guide_9.17.26.md
 

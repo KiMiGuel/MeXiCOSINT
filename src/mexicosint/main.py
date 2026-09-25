@@ -9,28 +9,22 @@ Cambios v2.7.1:
   - Refactor de nucleo con ScanSettings, modulos de proveedor y presentacion
   - Estados estructurados de proveedores, errores sanitizados y fuente de geocodificacion
   - Fallback de NumVerify/APILayer al endpoint marketplace
-  - Mejoras de diagnostico MicroVault y variables de entorno del perfil
+  - Mejoras de diagnostico MicroVault y perfil aislado
 
 Cambios v2.7.0:
   - MicroVault ya no requiere el flag --microvault: se auto-detecta y se
-    conecta solo cuando falta una key. --no-microvault lo omite,
-    --microvault fuerza la conexion (comportamiento explicito anterior)
-  - Bridge (microvault_bridge.py) usa el perfil "mexicosint" de MicroVault
-    con `microvault env --profile mexicosint --json` cuando existe: una
-    sola contraseña por ejecucion en vez de una por cada key, y ninguna
-    key ajena al perfil cruza a este proceso
+    conecta para resolver el perfil requerido. --microvault fuerza la conexion.
+  - Bridge (microvault_bridge.py) usa estrictamente el perfil "mexicosint"
+    de MicroVault con `microvault env --profile mexicosint --json`; no hay
+    fallback bare/per-service ni variables de entorno/JSON como credenciales
   - --dummy-test sigue existiendo para depuracion interna pero ya no se
     documenta publicamente (--help, README, docs/)
 
 Cambios v2.6.0:
-  - MicroVault integration completa: --microvault flag + bridge module
-    (Python import con fallback a CLI) para leer API keys desde el vault
-    cifrado, compatible con aislamiento de pipx
-  - Orden de resolucion de keys: env vars > MicroVault > JSON (JSON opcional)
+  - MicroVault integration: --microvault flag + bridge module para leer
+    credenciales desde el perfil cifrado "mexicosint"
   - Mapeo de nombres de servicio de MicroVault (abstract_api, numverify_api,
-    opencage_api, ipgs) alineado con la convencion *_api del vault
-  - Acepta variables de entorno con nombre plano (GEOAPIFY_API_KEY, etc.),
-    asi `eval "$(microvault env)"` funciona directo
+    opencage_api, ipgs) alineado con la convencion del vault
   - Fallback de geocodificacion GPS: intenta LADA, ciudad de consenso y
     region phonenumbers cuando la localidad canonica es vacia o vaga
   - Cosmetico: consola unificada, separadores entre secciones, sin filas
@@ -42,7 +36,7 @@ Cambios v2.5.6:
   - MicroVault integration: API keys can be read from MicroVault (encrypted
     vault) via Python import or CLI subprocess bridge (works with pipx)
   - --microvault flag: explicit MicroVault connection (prompts for password)
-  - Key resolution order: env vars > MicroVault > JSON config (JSON optional)
+  - Key resolution order: solo el perfil MicroVault "mexicosint"
   - GPS geocoding fallback: tries LADA region, consensus city, phonenumbers
     region when canonical locality query is empty or vague
   - Cosmetic: unified Console instance, Rule separators, removed spacer rows,
@@ -172,8 +166,6 @@ try:
 except ImportError:
     IFT_BLOCKS_AVAILABLE = False
 
-CONFIG_PATH = config_store.CONFIG_PATH
-
 SAMPLE_CONFIG = config_store.SAMPLE_CONFIG
 
 
@@ -228,15 +220,12 @@ SAMPLE_IPQUALITYSCORE = {
 
 def init_config(
     use_microvault: bool = False,
-    skip_microvault: bool = False,
     settings: ScanSettings | None = None,
 ):
     settings = settings or ScanSettings()
     return config_store.init_config(
-        settings.config_path,
         settings.dummy_mode,
         use_microvault=use_microvault,
-        skip_microvault=skip_microvault,
     )
 
 
@@ -249,24 +238,10 @@ def _get_api_key(config, key):
     return config_store.get_api_key(config, key)
 
 
-# --- API KEY MANAGEMENT (CLI) ---
-SERVICE_ALIASES = config_store.SERVICE_ALIASES
-
-
-def _canonical_service(name: str) -> str:
-    return config_store.canonical_service(name)
-
-
-def _mask_key(value: str) -> str:
-    return config_store.mask_key(value)
-
-
-def set_key_cli(service: str, key: str) -> int:
-    return config_store.set_key(service, key, CONFIG_PATH)
-
-
-def list_keys_cli() -> int:
-    return config_store.list_keys(CONFIG_PATH)
+# --- API KEY MANAGEMENT ---
+# MeXiCOSINT does not manage credentials. The supported provider is MicroVault
+# and its required ``mexicosint`` profile; the CLI intentionally has no
+# plaintext key store or key-management command.
 
 
 # --- MEXICO LADA DATABASE (FIX #4: Official IFT data) ---
@@ -1141,7 +1116,6 @@ def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
     dummy_mode = False
     use_microvault = False
-    skip_microvault = False
 
     if "--dummy-test" in args:
         dummy_mode = True
@@ -1153,11 +1127,7 @@ def main(argv=None):
         use_microvault = True
         args.remove("--microvault")
 
-    if "--no-microvault" in args:
-        skip_microvault = True
-        args.remove("--no-microvault")
-
-    settings = ScanSettings(dummy_mode=dummy_mode, config_path=CONFIG_PATH)
+    settings = ScanSettings(dummy_mode=dummy_mode)
 
     print_banner()
 
@@ -1166,9 +1136,7 @@ def main(argv=None):
     if not number:
         print("Uso: mexicosint [opciones] <numero_mexicano>")
         print("     mexicosint 5512345678")
-        print("     mexicosint --no-microvault 5512345678")
-        print("     mexicosint --set-key geoapify TU_KEY")
-        print("     mexicosint --list-keys")
+        print("     mexicosint --microvault 5512345678")
         print("     mexicosint --help")
         sys.exit(1)
 
@@ -1177,7 +1145,6 @@ def main(argv=None):
 
     config = init_config(
         use_microvault=use_microvault,
-        skip_microvault=skip_microvault,
         settings=settings,
     )
     active = check_keys(config, settings)

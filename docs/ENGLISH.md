@@ -1,330 +1,68 @@
 # MeXiCOSINT English Documentation
 
-**MeXiCOSINT v2.7.1** is a Python OSINT tool focused on Mexican phone-number analysis, validation, enrichment, and reporting.
+MeXiCOSINT is a phone-number OSINT tool for Mexican numbers.
 
-It is phone-only. The old IP workflow was removed: no `--ip`, no Shodan, no IPInfo, and no IP2Location.
+## Credential contract
 
-> Treat results as OSINT indicators, not proof of identity, ownership, live location, or subscriber attribution.
+Normal provider enrichment uses **MicroVault only**. MeXiCOSINT requires the
+`mexicosint` profile and fetches it through the local bridge with:
 
----
+```bash
+microvault env --profile mexicosint --json
+```
 
-## Features
-
-* Mexican phone-number validation.
-* National and international formatting.
-* Accepted Mexican phone formats: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.
-* Official IFT/PNN block lookup, offline.
-* LADA reference data as fallback or supporting evidence.
-* Canonical locality from IFT/LADA.
-* Optional enrichment from AbstractAPI, NumVerify, OpenCage, Geoapify, and IPQualityScore.
-* Structured per-provider states: configured, success, no result, authentication failure, quota failure, or provider error.
-* Explicit geocoding source (OpenCage, Geoapify, or Nominatim).
-* OSINT links using exact phone-number variants.
-* JSON reports under `output/reports/`.
-* CLI API-key management with `--set-key`, `--list-keys`, and `--config-path`.
-* MicroVault auto-detected when installed — no flag needed.
-
----
+Generic environment variables, plaintext JSON, bare MicroVault output, and
+per-service MicroVault requests are not credential sources. MeXiCOSINT does
+not create, read, or write credential JSON files. Dummy mode is the only
+fixture-based exception.
 
 ## Installation
-
-Recommended installation with `pipx`:
 
 ```bash
 sudo apt install -y pipx
 pipx install mexicosint
-```
-
-Run:
-
-```bash
 mexicosint 5512345678
 ```
 
-Upgrade:
+From a checkout:
 
 ```bash
-pipx upgrade mexicosint
-```
-
-Direct pip installation:
-
-```bash
-pip install mexicosint
-```
-
-Repository installation for development:
-
-```bash
-git clone https://github.com/KiMiGuel/MeXiCOSINT.git
-cd MeXiCOSINT
-python3 -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
-```
-
-Run from a repository checkout:
-
-```bash
 bash bin/mexicosint 5512345678
 ```
 
-Or run the module directly:
-
-```bash
-PYTHONPATH=src python3 -m mexicosint 5512345678
-```
-
----
-
 ## Usage
 
-Basic scan:
-
-```bash
-mexicosint 5512345678
-```
-
-MicroVault is auto-detected and used automatically when installed — no flag needed:
-
-```bash
-mexicosint 5512345678
-```
-
-Show version:
-
-```bash
-mexicosint --version
-```
-
-Show help:
-
-```bash
-mexicosint --help
-```
-
-Current CLI shape:
-
 ```text
-mexicosint [-h] [--no-microvault] [--microvault]
-           [--set-key SERVICIO KEY] [--list-keys] [--config-path]
-           [--version] [number]
+mexicosint [-h] [--microvault] [--version] [number]
 ```
 
----
+- `--microvault` forces the required profile connection.
+- `--version` prints the version.
+- `--dummy-test` is an internal fixture mode and requires no credentials.
 
-## API Keys
-
-MeXiCOSINT works without API keys for local validation, IFT/PNN lookup, LADA support, and OSINT links.
-
-Optional providers are used automatically when their key is configured. Missing keys skip only that provider.
-
-Current API-key commands:
+The CLI intentionally has no `--set-key`, `--list-keys`, or `--config-path`
+options. Manage credentials in MicroVault:
 
 ```bash
-mexicosint --set-key opencage TU_KEY
-mexicosint --set-key geoapify TU_KEY
-mexicosint --set-key ipqualityscore TU_KEY
-mexicosint --set-key abstract TU_KEY
-mexicosint --set-key numverify TU_KEY
+microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api
 ```
 
-Valid service names:
+## Providers
 
-```text
-abstract
-abstract_phone_intelligence
-numverify
-opencage
-geoapify
-ipqualityscore
-```
-
-List configured keys, masked:
-
-```bash
-mexicosint --list-keys
-```
-
-Show the config path:
-
-```bash
-mexicosint --config-path
-```
-
-Recommended local config path:
-
-```text
-~/.mx_osint_config.json
-```
-
-Example config with fake placeholders:
-
-```json
-{
-  "abstract_phone_intelligence": "TU_ABSTRACTAPI_KEY",
-  "numverify": "TU_NUMVERIFY_KEY",
-  "opencage": "TU_OPENCAGE_KEY",
-  "geoapify": "TU_GEOAPIFY_KEY",
-  "ipqualityscore": "TU_IPQUALITYSCORE_KEY"
-}
-```
-
-Protect the file:
-
-```bash
-chmod 600 ~/.mx_osint_config.json
-```
-
-Do not commit API keys, `.env`, config files, reports with sensitive data, or credentials.
-
----
-
-## Provider Behavior
-
-| Provider | Role |
-|---|---|
-| AbstractAPI | Phone validation and enrichment as supporting/conflict evidence |
-| NumVerify | Secondary validation as supporting/conflict evidence |
-| OpenCage | Primary optional geocoder for canonical IFT/LADA locality |
-| Geoapify | Optional geocoder fallback for canonical IFT/LADA locality |
-| IPQualityScore | Phone validation, reputation, abuse, activity, VoIP, carrier, and line-type evidence |
-| Nominatim | Final geocoder fallback when keyed geocoders are unavailable or return no result |
-
-AbstractAPI, NumVerify, and IPQualityScore locality fields do not override concrete IFT/LADA locality.
-
----
-
-## IFT/LADA Locality Pipeline
-
-The 2026 IFT block and LADA datasets included in the repository are authoritative for Mexican numbering locality.
-
-Pipeline:
-
-1. Normalize the phone number.
-2. Perform exact IFT block lookup.
-3. Derive canonical city or municipality and state from IFT.
-4. Use LADA mapping only as fallback or supporting evidence.
-5. Build one canonical geocoding query:
-
-```text
-<city or municipality>, <state>, Mexico
-```
-
-6. Use OpenCage first when configured.
-7. Use Geoapify as fallback when configured.
-8. Use Nominatim as final fallback.
-
-Vague values are never geocoded. Examples of rejected geocoding inputs:
-
-```text
-Mexico
-NorthWest
-country-only values
-generic regions
-line types
-provider labels without concrete city/state
-```
-
-Conflicts between sources can be shown, but the canonical locality and source attribution remain clear.
-
----
-
-## OSINT Links
-
-Generated OSINT links use exact number variants:
-
-* WhatsApp via `wa.me`.
-* Google search for E.164.
-* Google search for international digits.
-* Google search for national digits.
-* Google search for spaced phone format.
-* Google `site:` searches for Facebook, TikTok, X, and Twitter.
-* E.164 format reference.
-
-The complete link set is also stored in the JSON report.
-
----
-
-## Reports
-
-Reports are written under:
-
-```text
-output/reports/
-```
-
-Each report is generated from the current scan run and includes a scan ID, provider status, evidence state, normalized number, source attribution, OSINT links, and available provider data.
-
----
-
-## Updating IFT Data
-
-The package already includes the current data. If you are working from a repository checkout and need to rebuild it:
-
-```bash
-python3 tools/update_ift_blocks.py
-```
-
-Offline rebuild:
-
-```bash
-python3 tools/update_ift_blocks.py --offline
-```
-
-Do not replace the refreshed IFT/LADA data with older files.
-
----
+Optional providers are AbstractAPI, NumVerify, OpenCage, Geoapify, and
+IPQualityScore. Offline validation, IFT/PNN, LADA, OSINT links, and
+Nominatim remain available when enrichment is skipped.
 
 ## Security
 
-Never request, display, hardcode, log, or commit an API key.
+Never commit `.env`, JSON credentials, secrets, or sensitive reports. If a key
+is exposed, revoke it at the provider and replace it in MicroVault.
 
-Do not upload:
-
-```text
-.env
-*.env
-.mx_osint_config.json
-config.json
-secrets.json
-keys.json
-tokens.json
-credentials.json
-output/reports/ with sensitive case data
-```
-
-If a key is exposed, revoke it in the provider dashboard and create a new one.
-
----
-
-## Troubleshooting
-
-Command not found after `pipx` installation:
-
-```bash
-pipx ensurepath
-```
-
-Then reopen the terminal.
-
-Check installed version:
+## Status
 
 ```bash
 mexicosint --version
+mexicosint 5512345678
 ```
-
-Check configured keys:
-
-```bash
-mexicosint --list-keys
-```
-
----
-
-## Project Status
-
-MeXiCOSINT v2.7.1 is focused on Mexican phone-number OSINT. It does not perform IP enrichment.
-
-Use it only for authorized research, self-auditing, and educational workflows.
