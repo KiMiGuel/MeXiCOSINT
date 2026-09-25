@@ -14,12 +14,14 @@ consultan solo cuando el perfil MicroVault `mexicosint` aporta su credencial.
 ## Opciones
 
 ```text
-mexicosint [-h] [--microvault] [--version] [number]
+mexicosint [-h] [--batch FILE] [--mexico-only] [--microvault] [--version] [number]
 ```
 
 | Opción | Descripción |
 |---|---|
 | `number` | Número telefónico mexicano a escanear |
+| `--batch FILE` | Procesa un archivo con un número por línea |
+| `--mexico-only` | Omite proveedores externos de teléfono; conserva IFT/PNN y geocodificación aproximada |
 | `--microvault` | Fuerza la conexión al perfil `mexicosint` |
 | `--version` | Muestra la versión instalada |
 | `-h`, `--help` | Muestra la ayuda |

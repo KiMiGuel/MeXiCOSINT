@@ -178,7 +178,13 @@ Ejecuta MeXiCOSINT usando el comando:
 ```bash
 mexicosint 5512345678
 mexicosint +525512345678
+mexicosint --mexico-only 5512345678
+mexicosint --batch numeros.txt
 ```
+
+`--mexico-only` omite AbstractAPI, NumVerify e IPQualityScore, conservando
+IFT/PNN y la geolocalización aproximada de localidad. `--batch` procesa un
+archivo con un número por línea.
 
 La CLI ya no ofrece configuración de credenciales. La única fuente para
 proveedores es MicroVault, mediante el perfil `mexicosint`.

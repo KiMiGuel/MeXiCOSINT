@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.8.1
+MeXicOSINT v2.9.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.9.0:
+  - Nuevo modo --mexico-only para omitir proveedores externos de telefono
+  - IFT/PNN y la geolocalización aproximada mexicana siguen funcionando
 
 Cambios v2.8.1:
   - Las coordenadas se presentan como localidad aproximada con radio explícito
@@ -114,6 +118,7 @@ import urllib.parse
 import uuid
 from datetime import datetime
 from dataclasses import asdict
+from pathlib import Path
 
 from mexicosint import config as config_store
 from mexicosint.core.scan_result import ScanResult
@@ -1053,6 +1058,20 @@ async def _run_network_phase(
                     _trace_provider(result, "Nominatim", "skipped", normalized, locality_query=geo_target)
 
 
+def _read_batch_numbers(path: str) -> list[str]:
+    batch_path = Path(path).expanduser()
+    if not batch_path.is_file():
+        raise FileNotFoundError(f"Batch file not found: {batch_path}")
+    numbers = []
+    for line in batch_path.read_text(encoding="utf-8").splitlines():
+        value = line.strip()
+        if value and not value.startswith("#"):
+            numbers.append(value.split()[0])
+    if not numbers:
+        raise ValueError(f"Batch file contains no numbers: {batch_path}")
+    return numbers
+
+
 # --- MAIN ---
 def run_phone_scan(
     raw: str,
@@ -1127,7 +1146,18 @@ def run_phone_scan(
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
     dummy_mode = False
+    mexico_only = "--mexico-only" in args
+    batch_path = None
+    if "--batch" in args:
+        batch_index = args.index("--batch")
+        if batch_index + 1 >= len(args):
+            print("Uso: mexicosint --batch archivo.txt")
+            sys.exit(1)
+        batch_path = args[batch_index + 1]
+        del args[batch_index:batch_index + 2]
     use_microvault = False
+    if mexico_only:
+        args.remove("--mexico-only")
 
     if "--dummy-test" in args:
         dummy_mode = True
@@ -1139,15 +1169,16 @@ def main(argv=None):
         use_microvault = True
         args.remove("--microvault")
 
-    settings = ScanSettings(dummy_mode=dummy_mode)
+    settings = ScanSettings(dummy_mode=dummy_mode, mexico_only=mexico_only)
 
     print_banner()
 
     number = args[0] if args else None
 
-    if not number:
+    if not number and not batch_path:
         print("Uso: mexicosint [opciones] <numero_mexicano>")
         print("     mexicosint 5512345678")
+        print("     mexicosint --batch numeros.txt")
         print("     mexicosint --microvault 5512345678")
         print("     mexicosint --help")
         sys.exit(1)
@@ -1160,11 +1191,37 @@ def main(argv=None):
         settings=settings,
     )
     active = check_keys(config, settings)
+    if mexico_only:
+        external_phone_services = {
+            "abstract_phone_intelligence",
+            "numverify",
+            "ipqualityscore",
+        }
+        skipped = sorted(set(active) & external_phone_services)
+        active = [service for service in active if service not in external_phone_services]
+        if skipped:
+            print(f"[*] Modo Mexico-only: proveedores de teléfono omitidos: {', '.join(skipped)}")
+        else:
+            print("[*] Modo Mexico-only: no hay proveedores de teléfono externos activos.")
 
-    if number:
-        print(f"[+] Entrada cruda: {number}")
+    if batch_path:
+        try:
+            numbers = _read_batch_numbers(batch_path)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"[!] No se pudo leer el archivo batch: {exc}")
+            sys.exit(1)
+        print(f"[*] Batch: {len(numbers)} números desde {batch_path}")
+    elif number:
+        numbers = [number]
+    else:
+        numbers = []
+
+    for index, current_number in enumerate(numbers, start=1):
+        if batch_path:
+            print(f"[*] Batch {index}/{len(numbers)}")
+        print(f"[+] Entrada cruda: {current_number}")
         print("=" * 60)
-        result = run_phone_scan(number, config, active, settings)
+        result = run_phone_scan(current_number, config, active, settings)
         print_results(result)
 
     print("\n[*] Escaneo completado.")

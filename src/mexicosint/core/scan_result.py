@@ -17,6 +17,9 @@ from mexicosint.evidence import EvidenceState
 from mexicosint.providers.status import ProviderState, ProviderStatus
 
 
+REPORT_SCHEMA_VERSION = "2.9"
+
+
 def utc_timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -166,6 +169,25 @@ class ScanResult:
             all_votes=self.all_votes,
         )
 
+    def _provider_health(self) -> dict:
+        counts: dict[str, int] = {}
+        for status in self.provider_states.values():
+            state = str(status.state)
+            counts[state] = counts.get(state, 0) + 1
+        return {
+            "total": len(self.provider_states),
+            "by_state": counts,
+            "successful": counts.get(ProviderState.REQUEST_SUCCESS.value, 0),
+            "degraded": sum(
+                count
+                for state, count in counts.items()
+                if state not in {
+                    ProviderState.REQUEST_SUCCESS.value,
+                    ProviderState.NOT_REQUESTED.value,
+                }
+            ),
+        }
+
     def finalize_mexico_data_trust(self) -> None:
         """Record which phone fields are Mexico-authoritative vs secondary.
 
@@ -229,6 +251,29 @@ class ScanResult:
             "primary_phone_source": "IFT/PNN" if ift_fields else "local parser",
             "primary_fields": ift_fields,
             "secondary_phone_sources": secondary,
+            "provider_capabilities": {
+                "IFT/PNN": {
+                    "role": "primary",
+                    "scope": "Mexico numbering blocks",
+                    "fields": ["carrier", "modality", "assignment_date", "service_type", "zone"],
+                },
+                "local_parser": {
+                    "role": "local validation",
+                    "scope": "Mexican number format and locality hints",
+                    "fields": ["format", "possible", "line_type", "locality_hint"],
+                },
+                "OpenCage/Geoapify/Nominatim": {
+                    "role": "locality geocoding",
+                    "scope": "approximate locality only",
+                    "fields": ["city", "state", "latitude", "longitude"],
+                },
+                "AbstractAPI/NumVerify/IPQualityScore": {
+                    "role": "secondary corroboration",
+                    "scope": "external provider metadata",
+                    "fields": ["validity", "carrier", "line_type", "risk", "activity"],
+                },
+            },
+            "provider_health": self._provider_health(),
             "external_sources_override_ift": False,
             "locality_is_subscriber_location": False,
             "location_precision": self.location_precision,
@@ -249,4 +294,15 @@ class ScanResult:
         data = self.to_dict()
         data.pop("report_path", None)
         data.pop("report_hash", None)
+        data["report_manifest"] = {
+            "tool": "MeXiCOSINT",
+            "schema_version": REPORT_SCHEMA_VERSION,
+            "scan_id": self.scan_id,
+            "scan_timestamp": self.scan_timestamp,
+            "source_policy": "Mexico-first",
+            "primary_phone_source": self.mexico_data_trust.get(
+                "primary_phone_source", "local parser"
+            ),
+            "provider_health": self.mexico_data_trust.get("provider_health", {}),
+        }
         return data

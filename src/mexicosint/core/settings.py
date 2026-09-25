@@ -23,6 +23,7 @@ class ScanSettings:
     """
 
     dummy_mode: bool = False
+    mexico_only: bool = False
     output_dir: Path = field(default_factory=lambda: Path("output"))
     default_timeout: float = 15
     _session: requests.Session | None = field(default=None, repr=False)

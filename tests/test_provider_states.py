@@ -62,6 +62,9 @@ def test_dummy_scan_serializes_structured_provider_states(monkeypatch, tmp_path)
     assert report["geocoding_source"] == "fixture"
     assert report["provider_states"]["nominatim"]["state"] == "not_requested"
     assert report["local_line_type"] == "CELULAR PROBABLE"
+    assert report["report_manifest"]["schema_version"] == "2.9"
+    assert report["report_manifest"]["source_policy"] == "Mexico-first"
+    assert report["mexico_data_trust"]["provider_health"]["total"] > 0
 
 
 def test_provider_exception_classification():

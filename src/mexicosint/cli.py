@@ -41,9 +41,19 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,  # internal debugging only, not documented publicly
     )
     parser.add_argument(
+        "--batch",
+        metavar="FILE",
+        help="Procesa un archivo de numeros, uno por linea.",
+    )
+    parser.add_argument(
         "--microvault",
         action="store_true",
         help="Fuerza la conexion a MicroVault (ya se detecta solo si esta instalado).",
+    )
+    parser.add_argument(
+        "--mexico-only",
+        action="store_true",
+        help="Omite proveedores externos de telefono; conserva IFT/PNN y geocodificacion local.",
     )
     parser.add_argument(
         "--version",
@@ -64,6 +74,10 @@ def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
         argv.append("--dummy-test")
     if args.microvault:
         argv.append("--microvault")
+    if args.batch:
+        argv.extend(["--batch", args.batch])
+    if args.mexico_only:
+        argv.append("--mexico-only")
     if args.number:
         argv.append(args.number)
     return argv
@@ -73,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if not args.number:
+    if not args.number and not args.batch:
         parser.print_help()
         return 1
 
