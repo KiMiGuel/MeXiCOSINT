@@ -43,6 +43,7 @@ class ScanResult:
     ift_zona: str = ""
     ift_fecha_asignacion: str = ""
     ift_service_type: str = ""
+    ift_data_status: dict = field(default_factory=dict)
     canonical_locality_city: str = ""
     canonical_locality_state: str = ""
     canonical_locality_query: str = ""
@@ -181,9 +182,13 @@ class ScanResult:
             "degraded": sum(
                 count
                 for state, count in counts.items()
-                if state not in {
-                    ProviderState.REQUEST_SUCCESS.value,
-                    ProviderState.NOT_REQUESTED.value,
+                if state
+                in {
+                    ProviderState.NO_RESULT.value,
+                    ProviderState.PROVIDER_ERROR.value,
+                    ProviderState.INVALID_RESPONSE.value,
+                    ProviderState.AUTH_FAILED.value,
+                    ProviderState.QUOTA_EXCEEDED.value,
                 }
             ),
         }

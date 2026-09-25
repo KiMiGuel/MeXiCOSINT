@@ -46,6 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Procesa un archivo de numeros, uno por linea.",
     )
     parser.add_argument(
+        "--diff",
+        nargs=2,
+        metavar=("BEFORE", "AFTER"),
+        help="Compara dos reportes JSON y muestra cambios de evidencia.",
+    )
+    parser.add_argument(
         "--microvault",
         action="store_true",
         help="Fuerza la conexion a MicroVault (ya se detecta solo si esta instalado).",
@@ -76,6 +82,8 @@ def _to_legacy_argv(args: argparse.Namespace) -> list[str]:
         argv.append("--microvault")
     if args.batch:
         argv.extend(["--batch", args.batch])
+    if args.diff:
+        argv.extend(["--diff", *args.diff])
     if args.mexico_only:
         argv.append("--mexico-only")
     if args.number:
@@ -87,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if not args.number and not args.batch:
+    if not args.number and not args.batch and not args.diff:
         parser.print_help()
         return 1
 

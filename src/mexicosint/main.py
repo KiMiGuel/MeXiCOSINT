@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.9.0
+MeXicOSINT v2.10.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.10.0:
+  - Batch exporta manifest JSON y resumen CSV
+  - Historial local de escaneos y diff de evidencia entre reportes
+  - Estado de frescura de la base IFT/PNN
 
 Cambios v2.9.0:
   - Nuevo modo --mexico-only para omitir proveedores externos de telefono
@@ -113,6 +118,7 @@ Correcciones v2.2.4:
 
 import asyncio
 import aiohttp
+import json
 import sys
 import urllib.parse
 import uuid
@@ -174,10 +180,11 @@ from mexicosint.presentation import (
     rich_print_report,
     rich_print_subscriber,
 )
-from mexicosint.reporting import generate_map, save_report
+from mexicosint.reporting import generate_map, save_batch_exports, save_report
+from mexicosint.history import diff_scan_summaries
 
 try:
-    from mexicosint.modules.ift_blocks import lookup_block, modality_label
+    from mexicosint.modules.ift_blocks import dataset_status, lookup_block, modality_label
     IFT_BLOCKS_AVAILABLE = True
 except ImportError:
     IFT_BLOCKS_AVAILABLE = False
@@ -1084,6 +1091,9 @@ def run_phone_scan(
     result.scan_id = f"MX-{uuid.uuid4().hex[:10].upper()}"
     result.raw_input = raw
 
+    if IFT_BLOCKS_AVAILABLE:
+        result.ift_data_status = dataset_status()
+
     normalized = normalize_mx_number(raw)
     result.detected_format = normalized.detected_format
     result.international_digits = normalized.international_digits
@@ -1145,6 +1155,21 @@ def run_phone_scan(
 
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
+    if "--diff" in args:
+        diff_index = args.index("--diff")
+        if diff_index + 2 >= len(args):
+            print("Uso: mexicosint --diff antes.json despues.json")
+            sys.exit(1)
+        before_path, after_path = args[diff_index + 1:diff_index + 3]
+        try:
+            before = json.loads(Path(before_path).read_text(encoding="utf-8"))
+            after = json.loads(Path(after_path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"[!] No se pudieron leer los reportes: {exc}")
+            sys.exit(1)
+        print(json.dumps(diff_scan_summaries(before, after), indent=2, ensure_ascii=False, default=str))
+        return
+
     dummy_mode = False
     mexico_only = "--mexico-only" in args
     batch_path = None
@@ -1216,13 +1241,24 @@ def main(argv=None):
     else:
         numbers = []
 
+    batch_results = []
     for index, current_number in enumerate(numbers, start=1):
         if batch_path:
             print(f"[*] Batch {index}/{len(numbers)}")
         print(f"[+] Entrada cruda: {current_number}")
         print("=" * 60)
         result = run_phone_scan(current_number, config, active, settings)
+        batch_results.append(result)
         print_results(result)
+
+    if batch_path and batch_results:
+        manifest_path, csv_path = save_batch_exports(
+            batch_results,
+            Path(batch_path).name,
+            settings,
+        )
+        print(f"[+] Batch manifest: {manifest_path}")
+        print(f"[+] Batch CSV:      {csv_path}")
 
     print("\n[*] Escaneo completado.")
     print("=" * 60)

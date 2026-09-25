@@ -12,6 +12,7 @@ from __future__ import annotations
 import bisect
 import csv
 import gzip
+from datetime import datetime, timezone
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -64,6 +65,26 @@ def _load_ng() -> dict:
                     ng[(cve, serie)] = (pst, ini, fin)
         _ng_cache = ng
     return _ng_cache
+
+
+def dataset_status() -> dict:
+    """Return non-secret freshness metadata for the bundled IFT datasets."""
+    files = []
+    for path in (BLOCKS_FILE, NG_FILE):
+        if path.exists():
+            modified = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+            files.append(
+                {
+                    "name": path.name,
+                    "modified_utc": modified.isoformat(),
+                    "size_bytes": path.stat().st_size,
+                }
+            )
+    return {
+        "source": "IFT/PNN",
+        "available": bool(files),
+        "files": files,
+    }
 
 
 def lookup_block(national_number: str) -> dict:

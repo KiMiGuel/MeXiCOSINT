@@ -1,4 +1,5 @@
 from mexicosint.main import ScanResult, run_consensus
+from mexicosint.modules.ift_blocks import dataset_status
 
 
 def classify(**fields):
@@ -49,6 +50,14 @@ def test_evidence_state_conflicting_sources():
     assert result.evidence_state == "conflicting sources"
     assert result.consensus_city in {"Tijuana", "Monterrey"}
     assert sorted(result.consensus_sources) == ["AbstractAPI", "phonenumbers"]
+
+
+def test_ift_dataset_status_reports_bundled_sources():
+    status = dataset_status()
+
+    assert status["source"] == "IFT/PNN"
+    assert status["available"] is True
+    assert status["files"]
 
 
 def test_mexico_data_trust_prioritizes_ift_over_external_sources():

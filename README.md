@@ -180,11 +180,13 @@ mexicosint 5512345678
 mexicosint +525512345678
 mexicosint --mexico-only 5512345678
 mexicosint --batch numeros.txt
+mexicosint --diff antes.json despues.json
 ```
 
 `--mexico-only` omite AbstractAPI, NumVerify e IPQualityScore, conservando
 IFT/PNN y la geolocalización aproximada de localidad. `--batch` procesa un
-archivo con un número por línea.
+archivo con un número por línea y genera un manifest JSON y un resumen CSV.
+`--diff` compara la evidencia de dos reportes JSON.
 
 La CLI ya no ofrece configuración de credenciales. La única fuente para
 proveedores es MicroVault, mediante el perfil `mexicosint`.

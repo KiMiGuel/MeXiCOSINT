@@ -30,6 +30,14 @@ def test_cli_accepts_batch_file():
     assert args.number is None
 
 
+def test_cli_accepts_report_diff():
+    parser = build_parser()
+
+    args = parser.parse_args(["--diff", "before.json", "after.json"])
+
+    assert args.diff == ["before.json", "after.json"]
+
+
 def test_cli_keeps_dummy_test_flag_but_hides_it_from_help():
     """--dummy-test stays functional for internal debugging, but isn't
     documented publicly (not in --help, README, or docs/)."""

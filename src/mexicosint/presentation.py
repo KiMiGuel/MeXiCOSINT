@@ -125,6 +125,10 @@ def rich_print_subscriber(result: ScanResult):
             "Tipo de servicio (IFT)",
             f"[bold red]{result.ift_service_type}[/bold red]",
         )
+    ift_files = result.ift_data_status.get("files", [])
+    if ift_files:
+        freshness = max(file.get("modified_utc", "") for file in ift_files)
+        table.add_row("Base IFT/PNN actualizada", freshness[:19].replace("T", " "))
     table.add_row("Operadora (Abstract)", result.abstract_carrier or "—")
     table.add_row("Operadora (NumVerify)", result.numverify_carrier or "—")
     table.add_row(
@@ -156,6 +160,10 @@ def plain_print_subscriber(result: ScanResult):
         print(f"    Asignado (IFT):      {result.ift_fecha_asignacion}")
     if result.ift_service_type:
         print(f"    Tipo de servicio (IFT): {result.ift_service_type}")
+    ift_files = result.ift_data_status.get("files", [])
+    if ift_files:
+        freshness = max(file.get("modified_utc", "") for file in ift_files)
+        print(f"    Base IFT/PNN actualizada: {freshness[:19].replace('T', ' ')}")
     print(f"    Operadora (Abstract): {result.abstract_carrier or '—'}")
     print(f"    Operadora (NumVerify): {result.numverify_carrier or '—'}")
     print(
@@ -215,6 +223,40 @@ def plain_print_mexico_data_trust(result: ScanResult):
         )
     )
     print("    Regla: IFT/PNN no se reemplaza por APIs externas.")
+
+
+def rich_print_provider_health(result: ScanResult):
+    health = result.mexico_data_trust.get("provider_health", {})
+    if not health:
+        return
+    table = Table(
+        title="🩺 RESUMEN DE PROVIDERS",
+        box=box.ROUNDED,
+        border_style="yellow",
+        show_lines=True,
+    )
+    table.add_column("Métrica", style="bold yellow", width=24)
+    table.add_column("Valor", style="bold white", width=20)
+    table.add_row("Providers totales", str(health.get("total", 0)))
+    table.add_row("Exitosos", str(health.get("successful", 0)))
+    table.add_row("Degradados", str(health.get("degraded", 0)))
+    for state, count in sorted(health.get("by_state", {}).items()):
+        table.add_row(state, str(count))
+    _console.print()
+    _console.print(table)
+
+
+def plain_print_provider_health(result: ScanResult):
+    health = result.mexico_data_trust.get("provider_health", {})
+    if not health:
+        return
+    print("\n[+] RESUMEN DE PROVIDERS:")
+    print("-" * 60)
+    print(f"    Total:      {health.get('total', 0)}")
+    print(f"    Exitosos:   {health.get('successful', 0)}")
+    print(f"    Degradados: {health.get('degraded', 0)}")
+    for state, count in sorted(health.get("by_state", {}).items()):
+        print(f"    {state:20} {count}")
 
 
 def rich_print_api_results(result: ScanResult):
@@ -564,6 +606,10 @@ def print_results(result: ScanResult):
     _rich_or_plain(
         lambda: rich_print_mexico_data_trust(result),
         lambda: plain_print_mexico_data_trust(result),
+    )
+    _rich_or_plain(
+        lambda: rich_print_provider_health(result),
+        lambda: plain_print_provider_health(result),
     )
     _section_break()
     _rich_or_plain(
