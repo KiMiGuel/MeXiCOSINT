@@ -306,7 +306,7 @@ microvault add abstract_api
 Esto hace que MeXiCOSINT solo vea esas 5 keys — nunca el resto de tu bóveda, aunque tengas otros servicios guardados ahí para otras herramientas:
 
 ```bash
-microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api
+microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api verificaremails
 ```
 
 ### 4. Ejecuta MeXiCOSINT normalmente

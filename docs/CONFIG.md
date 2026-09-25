@@ -19,7 +19,7 @@ MeXiCOSINT usa **MicroVault como único backend de credenciales** para el enriqu
 En MicroVault, guarda las credenciales que quieras usar y crea el perfil:
 
 ```bash
-microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api
+microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api verificaremails
 ```
 
 Los nombres de servicio esperados por MeXiCOSINT son:
@@ -31,6 +31,8 @@ Los nombres de servicio esperados por MeXiCOSINT son:
 | OpenCage | `opencage_api` |
 | Geoapify | `geoapify` |
 | IPQualityScore | `ipgs` |
+| Verificar Emails | `verificaremails` |
+
 
 Después ejecuta normalmente:
 

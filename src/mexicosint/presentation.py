@@ -296,6 +296,15 @@ def rich_print_api_results(result: ScanResult):
             result.ipqualityscore_data.get("carrier") or "—",
             result.ipqualityscore_data.get("line_type") or "—",
         )
+    if result.verificaremails_data:
+        current_network = result.verificaremails_data.get("current_network") or {}
+        table.add_row(
+            "Verificar Emails",
+            "HLR/MNP",
+            current_network.get("area") or "—",
+            current_network.get("network_name") or "—",
+            result.verificaremails_data.get("number_type") or "—",
+        )
     _console.print()
     _console.print(table)
 
@@ -326,6 +335,15 @@ def plain_print_api_results(result: ScanResult):
             f"Abuso reciente: "
             f"{result.ipqualityscore_data.get('abuse_recent', 'N/A')}"
         )
+    if result.verificaremails_data:
+        current_network = result.verificaremails_data.get("current_network") or {}
+        print(
+            f"    [Verificar Emails] HLR: "
+            f"{result.verificaremails_data.get('reachable', 'N/A')}, "
+            f"Operadora actual: {current_network.get('network_name', '—')}, "
+            f"Portado: {result.verificaremails_data.get('is_ported', 'N/A')}, "
+            f"MCCMNC: {current_network.get('mccmnc', '—')}"
+        )
 
 
 def rich_print_provider_states(result: ScanResult):
@@ -337,6 +355,7 @@ def rich_print_provider_states(result: ScanResult):
         "opencage": "OpenCage",
         "geoapify": "Geoapify",
         "ipqualityscore": "IPQualityScore",
+        "verificaremails": "Verificar Emails",
         "nominatim": "Nominatim",
     }
     table = Table(
@@ -371,6 +390,7 @@ def plain_print_provider_states(result: ScanResult):
         "opencage": "OpenCage",
         "geoapify": "Geoapify",
         "ipqualityscore": "IPQualityScore",
+        "verificaremails": "Verificar Emails",
         "nominatim": "Nominatim",
     }
     print("\n[+] ESTADO DE PROVEEDORES:")

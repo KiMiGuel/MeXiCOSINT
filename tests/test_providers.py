@@ -9,6 +9,7 @@ from mexicosint.providers.geoapify import GeoapifyProvider
 from mexicosint.providers.ipqualityscore import IPQualityScoreProvider
 from mexicosint.providers.numverify import NumVerifyProvider, parse_numverify
 from mexicosint.providers.nominatim import NominatimProvider
+from mexicosint.providers.verificaremails import VerificarEmailsProvider
 from mexicosint.providers.opencage import OpenCageProvider
 from mexicosint.providers.status import ProviderRequestError, ProviderState
 
@@ -220,6 +221,41 @@ def test_ipqualityscore_uses_documented_www_endpoint():
     assert provider._url(normalize_mx_number("6634647308")).startswith(
         "https://www.ipqualityscore.com/api/json/phone/key/"
     )
+
+
+def test_verificaremails_normalizes_nested_hlr_response(monkeypatch):
+    calls = []
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        calls.append((url, params, timeout))
+        return FakeResponse(
+            {
+                "result_code": "101",
+                "result_type": "Conectado",
+                "result": {
+                    "result": {
+                        "phone_number": "+525512345678",
+                        "number_type": "mobile",
+                        "reachable": "connected",
+                        "is_ported": False,
+                        "current_network": {
+                            "network_name": "Telcel",
+                            "mccmnc": "334020",
+                        },
+                    }
+                },
+            }
+        )
+
+    monkeypatch.setattr("mexicosint.providers.verificaremails.requests.get", fake_get)
+
+    result = VerificarEmailsProvider("key").lookup(normalize_mx_number("5512345678"))
+
+    assert calls[0][0].endswith("/phone/validate/single")
+    assert calls[0][1]["term"] == "525512345678"
+    assert calls[0][1]["auth-token"] == "key"
+    assert result["reachable"] == "connected"
+    assert result["current_network"]["network_name"] == "Telcel"
 
 
 def test_abstract_provider_builds_request_and_parses_phone_intelligence(monkeypatch):

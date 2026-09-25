@@ -17,6 +17,7 @@ SAMPLE_CONFIG = {
     "opencage": "",
     "geoapify": "",
     "ipqualityscore": "",
+    "verificaremails": "",
 }
 
 SERVICE_ALIASES = {
@@ -30,6 +31,7 @@ MICROVAULT_SERVICES = {
     "opencage": "opencage_api",
     "geoapify": "geoapify",
     "ipqualityscore": "ipgs",
+    "verificaremails": "verificaremails",
 }
 
 # Lazy-loaded bridge.  It is deliberately never initialized with a direct
@@ -127,7 +129,7 @@ def init_config(
     profile = {service: value for service, value in profile.items() if value}
     if not profile:
         print("[!] El perfil MicroVault 'mexicosint' no contiene keys utilizables.")
-        print("    Configúralo con: microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api")
+        print("    Configúralo con: microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api verificaremails")
     return profile
 
 

@@ -74,6 +74,7 @@ class ScanResult:
     geoapify_longitude: float | None = None
     geoapify_address: str = ""
     ipqualityscore_data: dict = field(default_factory=dict)
+    verificaremails_data: dict = field(default_factory=dict)
     provider_trace: list = field(default_factory=list)
     provider_states: dict[str, ProviderStatus] = field(default_factory=dict)
     geocoding_source: str = ""
@@ -216,6 +217,7 @@ class ScanResult:
             ("AbstractAPI", self.abstract_data),
             ("NumVerify", self.numverify_data),
             ("IPQualityScore", self.ipqualityscore_data),
+            ("Verificar Emails", self.verificaremails_data),
         ):
             if not data:
                 continue
@@ -234,6 +236,12 @@ class ScanResult:
                     "line_type",
                     "location",
                     "region",
+                    "reachable",
+                    "is_ported",
+                    "imsi",
+                    "mccmnc",
+                    "current_network",
+                    "original_network",
                 )
                 if data.get(field) not in (None, "")
             ]
@@ -276,6 +284,11 @@ class ScanResult:
                     "role": "secondary corroboration",
                     "scope": "external provider metadata",
                     "fields": ["validity", "carrier", "line_type", "risk", "activity"],
+                },
+                "Verificar Emails": {
+                    "role": "secondary HLR/MNP",
+                    "scope": "current/original network metadata",
+                    "fields": ["reachable", "is_ported", "imsi", "mccmnc", "network", "area"],
                 },
             },
             "provider_health": self._provider_health(),

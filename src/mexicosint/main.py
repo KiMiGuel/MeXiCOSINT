@@ -157,6 +157,7 @@ from mexicosint.providers.status import (
     ProviderStatus,
     classify_provider_exception,
 )
+from mexicosint.providers.verificaremails import VerificarEmailsProvider
 from mexicosint.presentation import (
     _render_figlet,
     _rich_or_plain,
@@ -458,6 +459,24 @@ async def _call_maybe_async(fn, *args, session):
     return await asyncio.to_thread(fn, *args)
 
 
+SAMPLE_VERIFICAREMAILS = {
+    "phone_number": "+525512345678",
+    "number_type": "mobile",
+    "reachable": "connected",
+    "is_ported": False,
+    "current_network": {
+        "country_iso2": "MX",
+        "network_name": "Telcel",
+        "mccmnc": "334020",
+    },
+    "original_network": {
+        "country_iso2": "MX",
+        "network_name": "Telcel",
+        "mccmnc": "334020",
+    },
+}
+
+
 # --- API CALLS (compatibility wrappers over provider classes) ---
 def abstract_phone_intelligence_lookup(
     e164, api_key, settings: ScanSettings | None = None
@@ -702,6 +721,42 @@ async def _ipqs_job(result, normalized, config, active, session, settings):
         )
 
 
+async def _verificaremails_job(result, normalized, config, active, session):
+    service = "verificaremails"
+    if service not in active:
+        _trace_provider(result, "Verificar Emails", "skipped", normalized)
+        return
+    key = _get_api_key(config, service)
+    try:
+        _trace_provider(result, "Verificar Emails", "live_request", normalized)
+        data = await VerificarEmailsProvider(key).alookup(session, normalized)
+        if data:
+            result.verificaremails_data = data
+            state = ProviderState.REQUEST_SUCCESS
+        else:
+            state = ProviderState.NO_RESULT
+        _set_provider_state(
+            result,
+            service,
+            ProviderStatus(
+                state=state,
+                transport="live_request",
+                request_attempted=True,
+            ),
+        )
+    except Exception as exc:
+        status = _provider_error_status(exc, key)
+        _set_provider_state(result, service, status)
+        result.errors.append(f"verificaremails: {status.detail}")
+        _trace_provider(
+            result,
+            "Verificar Emails",
+            str(status.state),
+            normalized,
+            note=status.detail or type(exc).__name__,
+        )
+
+
 async def _opencage_job(result, normalized, geo_target, config, session, settings):
     service = "opencage"
     key = _get_api_key(config, service)
@@ -863,12 +918,26 @@ async def _run_network_phase(
             )
         else:
             _trace_provider(result, "IPQualityScore", "skipped", normalized)
+        if "verificaremails" in active:
+            _trace_provider(result, "Verificar Emails", "fixture", normalized)
+            result.verificaremails_data = dict(SAMPLE_VERIFICAREMAILS)
+            _set_provider_state(
+                result,
+                "verificaremails",
+                ProviderStatus(
+                    state=ProviderState.REQUEST_SUCCESS,
+                    transport="fixture",
+                ),
+            )
+        else:
+            _trace_provider(result, "Verificar Emails", "skipped", normalized)
     else:
         async with aiohttp.ClientSession() as session:
             await asyncio.gather(
                 _abstract_job(result, normalized, e164, config, active, session, api_results),
                 _numverify_job(result, normalized, e164, config, active, session, api_results),
                 _ipqs_job(result, normalized, config, active, session, settings),
+                _verificaremails_job(result, normalized, config, active, session),
             )
 
     # Process Abstract Phone Intelligence results
@@ -1221,6 +1290,7 @@ def main(argv=None):
             "abstract_phone_intelligence",
             "numverify",
             "ipqualityscore",
+            "verificaremails",
         }
         skipped = sorted(set(active) & external_phone_services)
         active = [service for service in active if service not in external_phone_services]
