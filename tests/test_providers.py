@@ -258,6 +258,26 @@ def test_verificaremails_normalizes_nested_hlr_response(monkeypatch):
     assert result["current_network"]["network_name"] == "Telcel"
 
 
+def test_verificaremails_empty_result_is_no_result(monkeypatch):
+    monkeypatch.setattr(
+        "mexicosint.providers.verificaremails.requests.get",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "result_code": "114",
+                "result_type": "Inconclusive",
+                "result": {},
+            }
+        ),
+    )
+
+    with pytest.raises(ProviderRequestError) as exc_info:
+        VerificarEmailsProvider("key").lookup(normalize_mx_number("5512345678"))
+
+    assert exc_info.value.state == ProviderState.NO_RESULT
+    assert exc_info.value.provider_code == "114"
+    assert "result_code=114" in exc_info.value.detail
+
+
 def test_abstract_provider_builds_request_and_parses_phone_intelligence(monkeypatch):
     calls = []
 

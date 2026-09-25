@@ -23,17 +23,36 @@ def _result_payload(data) -> dict:
             "Verificar Emails returned a non-object response",
             http_status=200,
         )
-    outer = data.get("result")
-    if isinstance(outer, dict) and isinstance(outer.get("result"), dict):
-        return outer["result"]
-    if isinstance(outer, dict):
-        return outer
-    if any(key in data for key in ("result_code", "result_type", "phone_number", "reachable")):
-        return data
+
+    candidate = data
+    for _ in range(3):
+        nested = candidate.get("result") if isinstance(candidate, dict) else None
+        if not isinstance(nested, dict):
+            break
+        candidate = nested
+
+    if any(
+        key in candidate
+        for key in ("phone_number", "reachable", "current_network", "original_network")
+    ):
+        return candidate
+
+    result_code = data.get("result_code") or candidate.get("result_code")
+    result_type = data.get("result_type") or candidate.get("result_type")
+    message = data.get("message") or candidate.get("message")
+    details = []
+    if result_code:
+        details.append(f"result_code={result_code}")
+    if result_type:
+        details.append(f"result_type={result_type}")
+    if message:
+        details.append(f"message={message}")
+    suffix = f" ({'; '.join(details)})" if details else ""
     raise ProviderRequestError(
-        ProviderState.INVALID_RESPONSE,
-        "Verificar Emails returned an unsupported response schema",
+        ProviderState.NO_RESULT,
+        f"Verificar Emails returned no HLR/MNP data{suffix}",
         http_status=200,
+        provider_code=str(result_code or ""),
     )
 
 
