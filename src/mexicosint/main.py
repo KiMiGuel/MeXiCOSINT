@@ -675,7 +675,7 @@ async def _ipqs_job(result, normalized, config, active, session, settings):
             "IPQualityScore",
             str(status.state),
             normalized,
-            note=type(exc).__name__,
+            note=status.detail or type(exc).__name__,
         )
 
 

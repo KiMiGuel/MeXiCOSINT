@@ -177,6 +177,51 @@ def test_ipqualityscore_normalizes_phone_evidence(monkeypatch):
     assert result.carrier == "Telcel"
 
 
+def test_ipqualityscore_api_error_envelope_is_classified(monkeypatch):
+    monkeypatch.setattr(
+        "mexicosint.providers.ipqualityscore.requests.get",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "success": False,
+                "message": "Invalid API key.",
+                "request_id": "request-123",
+            }
+        ),
+    )
+
+    with pytest.raises(ProviderRequestError) as exc_info:
+        IPQualityScoreProvider("bad-key").lookup(normalize_mx_number("6634647308"))
+
+    assert exc_info.value.state == ProviderState.AUTH_FAILED
+    assert exc_info.value.http_status == 200
+    assert exc_info.value.provider_code == "request-123"
+    assert "Invalid API key" in exc_info.value.detail
+
+
+def test_ipqualityscore_invalid_phone_is_no_result(monkeypatch):
+    monkeypatch.setattr(
+        "mexicosint.providers.ipqualityscore.requests.get",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "success": False,
+                "message": "Invalid/nonexistent phone number or no country specified.",
+            }
+        ),
+    )
+
+    with pytest.raises(ProviderRequestError) as exc_info:
+        IPQualityScoreProvider("key").lookup(normalize_mx_number("6634647308"))
+
+    assert exc_info.value.state == ProviderState.NO_RESULT
+
+
+def test_ipqualityscore_uses_documented_www_endpoint():
+    provider = IPQualityScoreProvider("key")
+    assert provider._url(normalize_mx_number("6634647308")).startswith(
+        "https://www.ipqualityscore.com/api/json/phone/key/"
+    )
+
+
 def test_abstract_provider_builds_request_and_parses_phone_intelligence(monkeypatch):
     calls = []
 
