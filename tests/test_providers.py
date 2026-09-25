@@ -230,14 +230,22 @@ def test_abstract_provider_builds_request_and_parses_phone_intelligence(monkeypa
         return FakeResponse(
             {
                 "phone_number": "+525512345678",
-                "phone_validation": {"is_valid": True},
+                "phone_validation": {
+                    "is_valid": True,
+                    "line_status": "active",
+                    "is_voip": False,
+                },
                 "phone_format": {
                     "international": "+52 55 1234 5678",
                     "national": "55 1234 5678",
                 },
                 "phone_location": {"country_name": "Mexico", "city": "CDMX"},
                 "phone_carrier": {"name": "Telcel", "line_type": "mobile"},
-                "phone_risk": {"risk_level": "low"},
+                "phone_risk": {
+                    "risk_level": "low",
+                    "is_disposable": False,
+                    "is_abuse_detected": False,
+                },
             }
         )
 
@@ -256,6 +264,10 @@ def test_abstract_provider_builds_request_and_parses_phone_intelligence(monkeypa
     assert parsed["valid"] is True
     assert parsed["location"] == "CDMX"
     assert parsed["carrier"] == "Telcel"
+    assert parsed["line_status"] == "active"
+    assert parsed["is_voip"] is False
+    assert parsed["is_disposable"] is False
+    assert parsed["abuse_detected"] is False
 
 
 def test_numverify_provider_builds_request_and_normalizes(monkeypatch):

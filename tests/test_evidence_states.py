@@ -49,3 +49,20 @@ def test_evidence_state_conflicting_sources():
     assert result.evidence_state == "conflicting sources"
     assert result.consensus_city in {"Tijuana", "Monterrey"}
     assert sorted(result.consensus_sources) == ["AbstractAPI", "phonenumbers"]
+
+
+def test_mexico_data_trust_prioritizes_ift_over_external_sources():
+    result = classify(
+        ift_carrier="Telcel",
+        ift_modality="Movil",
+        abstract_data={"carrier": "otro", "risk_level": "low"},
+        ipqualityscore_data={"risk_score": 10, "carrier": "otro"},
+    )
+
+    result.finalize_mexico_data_trust()
+
+    assert result.mexico_data_trust["policy"] == "Mexico-first"
+    assert result.mexico_data_trust["primary_phone_source"] == "IFT/PNN"
+    assert result.mexico_data_trust["primary_fields"] == ["carrier", "modality"]
+    assert result.mexico_data_trust["external_sources_override_ift"] is False
+    assert result.mexico_data_trust["secondary_phone_sources"][0]["provider"] == "AbstractAPI"

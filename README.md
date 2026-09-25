@@ -50,6 +50,8 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - Estado estructurado por proveedor: `missing`, `not_requested`, `configured_unverified`, `request_success`, `no_result`, `auth_failed`, `quota_exceeded` y más
 - Fuente de geocodificación seleccionada visible en el resultado
 - **MicroVault como único backend de credenciales** para el enriquecimiento normal; se requiere el perfil `mexicosint`
+- **Modelo Mexico-first (v2.8.0)**: IFT/PNN es la fuente primaria para bloques de numeración mexicanos; Abstract, NumVerify e IPQualityScore se muestran como corroboración secundaria y no reemplazan los datos oficiales
+- **Matriz de confianza**: el reporte identifica qué campos provienen de IFT/PNN y cuáles son señales secundarias
 - **Rendimiento concurrente (v2.5.3)**: llamadas a APIs en paralelo (asyncio + aiohttp), pooling de conexiones HTTPS y memoización de normalización y geocodificación
 - Soporte para reportes o salidas generadas según la versión
 - Modo telefónico únicamente: sin proveedores IP ni escaneo IP

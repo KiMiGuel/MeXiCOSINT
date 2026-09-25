@@ -169,6 +169,10 @@ def parse_abstract(data: dict) -> dict:
             or phone_location.get("region"),
             "carrier": phone_carrier.get("name"),
             "line_type": phone_carrier.get("line_type"),
+            "line_status": phone_validation.get("line_status"),
+            "is_voip": phone_validation.get("is_voip"),
+            "is_disposable": phone_risk.get("is_disposable"),
+            "abuse_detected": phone_risk.get("is_abuse_detected"),
             "risk_level": phone_risk.get("risk_level"),
             "raw": data,
         }

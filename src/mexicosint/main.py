@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.7.1
+MeXicOSINT v2.8.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.8.0:
+  - Modelo Mexico-first: IFT/PNN es la fuente primaria de datos de numeracion
+  - APIs externas quedan como corroboracion secundaria y no reemplazan IFT/PNN
+  - Matriz de confianza y campos disponibles en el reporte JSON
+  - Enriquecimiento de Abstract con estado de linea, VOIP, disposable y abuse
+  - IPQualityScore queda como provider opcional de reputacion, no como fuente canonica
 
 Cambios v2.7.1:
   - Refactor de nucleo con ScanSettings, modulos de proveedor y presentacion
@@ -1101,6 +1108,7 @@ def run_phone_scan(
 
     # API calls + geocoding (concurrent network phases)
     asyncio.run(_run_network_phase(result, normalized, e164, config, active, settings))
+    result.finalize_mexico_data_trust()
 
     # Map
     if result.latitude and result.longitude:

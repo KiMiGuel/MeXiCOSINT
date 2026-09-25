@@ -78,6 +78,7 @@ class ScanResult:
     report_path: str = ""
     report_hash: str = ""
     errors: list = field(default_factory=list)
+    mexico_data_trust: dict = field(default_factory=dict)
     scan_timestamp: str = field(default_factory=utc_timestamp)
 
     @property
@@ -162,6 +163,72 @@ class ScanResult:
             sources=self.consensus_sources,
             all_votes=self.all_votes,
         )
+
+    def finalize_mexico_data_trust(self) -> None:
+        """Record which phone fields are Mexico-authoritative vs secondary.
+
+        IFT/PNN is the primary source for Mexican numbering-block facts. External
+        APIs may corroborate format, carrier, or line type, but must never
+        silently replace the official Mexican block data.
+        """
+        ift_fields = [
+            name
+            for name, value in (
+                ("carrier", self.ift_carrier),
+                ("modality", self.ift_modality),
+                ("assignment_date", self.ift_fecha_asignacion),
+                ("service_type", self.ift_service_type),
+                ("zone", self.ift_zona),
+            )
+            if value
+        ]
+        secondary = []
+        for provider, data in (
+            ("AbstractAPI", self.abstract_data),
+            ("NumVerify", self.numverify_data),
+            ("IPQualityScore", self.ipqualityscore_data),
+        ):
+            if not data:
+                continue
+            available = [
+                field
+                for field in (
+                    "valid",
+                    "active",
+                    "risk_level",
+                    "risk_score",
+                    "abuse_recent",
+                    "abuse_detected",
+                    "is_voip",
+                    "is_disposable",
+                    "carrier",
+                    "line_type",
+                    "location",
+                    "region",
+                )
+                if data.get(field) not in (None, "")
+            ]
+            secondary.append(
+                {
+                    "provider": provider,
+                    "role": "secondary corroboration",
+                    "available_fields": available,
+                }
+            )
+        self.mexico_data_trust = {
+            "policy": "Mexico-first",
+            "primary_phone_source": "IFT/PNN" if ift_fields else "local parser",
+            "primary_fields": ift_fields,
+            "secondary_phone_sources": secondary,
+            "external_sources_override_ift": False,
+            "locality_is_subscriber_location": False,
+            "confidence": "high" if ift_fields else "medium",
+            "limitations": [
+                "IFT/PNN describes the assigned numbering block, not the current subscriber.",
+                "External provider data is secondary and may reflect another database.",
+                "Geocoding locality is approximate numbering locality, not GPS location.",
+            ],
+        }
 
     def to_dict(self) -> dict:
         return asdict(self)

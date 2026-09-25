@@ -164,6 +164,59 @@ def plain_print_subscriber(result: ScanResult):
     )
 
 
+def rich_print_mexico_data_trust(result: ScanResult):
+    trust = result.mexico_data_trust
+    if not trust:
+        return
+    table = Table(
+        title="🇲🇽 CONFIABILIDAD DE DATOS MEXICANOS",
+        box=box.ROUNDED,
+        border_style="green",
+        show_lines=True,
+    )
+    table.add_column("Campo", style="bold yellow", width=28)
+    table.add_column("Valor", style="bold white", width=58)
+    table.add_row("Fuente primaria", trust.get("primary_phone_source", "—"))
+    table.add_row("Campos IFT/PNN", ", ".join(trust.get("primary_fields", [])) or "—")
+    table.add_row("Confianza", trust.get("confidence", "—").upper())
+    table.add_row(
+        "Fuentes secundarias",
+        ", ".join(
+            f"{item['provider']} ({', '.join(item['available_fields']) or 'sin campos'})"
+            for item in trust.get("secondary_phone_sources", [])
+        )
+        or "—",
+    )
+    table.add_row(
+        "Regla",
+        "IFT/PNN no se reemplaza por APIs externas; localidad no es ubicación del suscriptor.",
+    )
+    _console.print()
+    _console.print(table)
+
+
+def plain_print_mexico_data_trust(result: ScanResult):
+    trust = result.mexico_data_trust
+    if not trust:
+        return
+    print("\n[+] CONFIABILIDAD DE DATOS MEXICANOS:")
+    print("-" * 60)
+    print(f"    Fuente primaria:       {trust.get('primary_phone_source', '—')}")
+    print(f"    Campos IFT/PNN:       {', '.join(trust.get('primary_fields', [])) or '—'}")
+    print(f"    Confianza:            {trust.get('confidence', '—').upper()}")
+    print(
+        "    Fuentes secundarias:  "
+        + (
+            ", ".join(
+                f"{item['provider']} ({', '.join(item['available_fields']) or 'sin campos'})"
+                for item in trust.get("secondary_phone_sources", [])
+            )
+            or "—"
+        )
+    )
+    print("    Regla: IFT/PNN no se reemplaza por APIs externas.")
+
+
 def rich_print_api_results(result: ScanResult):
     table = Table(
         title="🌐 RESULTADOS DE APIs",
@@ -495,6 +548,11 @@ def print_results(result: ScanResult):
     _rich_or_plain(
         lambda: rich_print_subscriber(result),
         lambda: plain_print_subscriber(result),
+    )
+    _section_break()
+    _rich_or_plain(
+        lambda: rich_print_mexico_data_trust(result),
+        lambda: plain_print_mexico_data_trust(result),
     )
     _section_break()
     _rich_or_plain(
