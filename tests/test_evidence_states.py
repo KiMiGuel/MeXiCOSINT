@@ -55,6 +55,7 @@ def test_mexico_data_trust_prioritizes_ift_over_external_sources():
     result = classify(
         ift_carrier="Telcel",
         ift_modality="Movil",
+        region_phonenumbers="Tijuana",
         abstract_data={"carrier": "otro", "risk_level": "low"},
         ipqualityscore_data={"risk_score": 10, "carrier": "otro"},
     )
@@ -65,4 +66,6 @@ def test_mexico_data_trust_prioritizes_ift_over_external_sources():
     assert result.mexico_data_trust["primary_phone_source"] == "IFT/PNN"
     assert result.mexico_data_trust["primary_fields"] == ["carrier", "modality"]
     assert result.mexico_data_trust["external_sources_override_ift"] is False
+    assert result.mexico_data_trust["location_precision"] == "numbering_locality"
+    assert result.mexico_data_trust["location_accuracy_km"] == 25.0
     assert result.mexico_data_trust["secondary_phone_sources"][0]["provider"] == "AbstractAPI"

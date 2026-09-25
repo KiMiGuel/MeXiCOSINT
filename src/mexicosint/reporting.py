@@ -35,13 +35,20 @@ def generate_map(
         )
         folium.Marker(
             [result.latitude, result.longitude],
-            popup=f"{result.e164}<br>{result.consensus_city}",
-            tooltip="Centro aproximado de la localidad",
+            popup=(
+                f"{result.e164}<br>{result.consensus_city}<br>"
+                f"Localidad de numeracion; precision aproximada "
+                f"(~{result.location_accuracy_km:.0f} km)"
+            ),
+            tooltip="Centro aproximado de localidad; no ubicacion del suscriptor",
         ).add_to(map_obj)
         folium.Circle(
             [result.latitude, result.longitude],
-            radius=5000,
-            popup="Area aproximada",
+            radius=max(5000, min(result.location_accuracy_km * 1000, 100000)),
+            popup=(
+                "Area aproximada de la localidad de numeracion; "
+                "no es una ubicacion GPS"
+            ),
             color="red",
             fill=True,
             fill_opacity=0.1,

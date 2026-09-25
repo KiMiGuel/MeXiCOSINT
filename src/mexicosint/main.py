@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.8.0
+MeXicOSINT v2.8.1
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.8.1:
+  - Las coordenadas se presentan como localidad aproximada con radio explícito
+  - El pin del mapa ya no implica precisión GPS o ubicación del suscriptor
 
 Cambios v2.8.0:
   - Modelo Mexico-first: IFT/PNN es la fuente primaria de datos de numeracion

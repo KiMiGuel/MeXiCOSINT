@@ -79,6 +79,8 @@ class ScanResult:
     report_hash: str = ""
     errors: list = field(default_factory=list)
     mexico_data_trust: dict = field(default_factory=dict)
+    location_precision: str = "numbering_locality"
+    location_accuracy_km: float = 25.0
     scan_timestamp: str = field(default_factory=utc_timestamp)
 
     @property
@@ -215,6 +217,13 @@ class ScanResult:
                     "available_fields": available,
                 }
             )
+        self.location_precision = "numbering_locality"
+        if self.consensus_city:
+            self.location_accuracy_km = 25.0
+        elif self.lada_region:
+            self.location_accuracy_km = 50.0
+        else:
+            self.location_accuracy_km = 100.0
         self.mexico_data_trust = {
             "policy": "Mexico-first",
             "primary_phone_source": "IFT/PNN" if ift_fields else "local parser",
@@ -222,6 +231,8 @@ class ScanResult:
             "secondary_phone_sources": secondary,
             "external_sources_override_ift": False,
             "locality_is_subscriber_location": False,
+            "location_precision": self.location_precision,
+            "location_accuracy_km": self.location_accuracy_km,
             "confidence": "high" if ift_fields else "medium",
             "limitations": [
                 "IFT/PNN describes the assigned numbering block, not the current subscriber.",

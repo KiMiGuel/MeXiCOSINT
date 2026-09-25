@@ -414,6 +414,11 @@ def rich_print_geo(result: ScanResult):
     table.add_column("Valor", style="bold white", width=50)
     table.add_row("Localidad base", result.consensus_city or "—")
     table.add_row("Fuente geocodificacion", result.geocoding_source or "—")
+    table.add_row("Precision", result.location_precision or "—")
+    table.add_row(
+        "Radio aproximado",
+        f"~{result.location_accuracy_km:.0f} km" if result.location_accuracy_km else "—",
+    )
     table.add_row("Latitud", f"{result.latitude:.5f}" if result.latitude else "—")
     table.add_row("Longitud", f"{result.longitude:.5f}" if result.longitude else "—")
     table.add_row(
@@ -459,6 +464,12 @@ def plain_print_geo(result: ScanResult):
     print("-" * 60)
     print(f"    Localidad base:  {result.consensus_city or '—'}")
     print(f"    Fuente geocodificacion: {result.geocoding_source or '—'}")
+    print(f"    Precision:         {result.location_precision or '—'}")
+    print(
+        f"    Radio aproximado:  ~{result.location_accuracy_km:.0f} km"
+        if result.location_accuracy_km
+        else "    Radio aproximado:  —"
+    )
     print(
         f"    Latitud:         {result.latitude:.5f}"
         if result.latitude
