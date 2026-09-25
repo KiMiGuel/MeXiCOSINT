@@ -32,7 +32,7 @@ El enriquecimiento normal requiere [MicroVault](https://github.com/KiMiGuel/Micr
 y su perfil `mexicosint`:
 
 ```bash
-microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api
+microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api verificaremails
 ```
 
 MeXiCOSINT no lee variables de entorno genéricas ni archivos JSON, y no crea un

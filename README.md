@@ -50,7 +50,7 @@ La herramienta puede validar números, analizar formatos mexicanos, consultar fu
 - Estado estructurado por proveedor: `missing`, `not_requested`, `configured_unverified`, `request_success`, `no_result`, `auth_failed`, `quota_exceeded` y más
 - Fuente de geocodificación seleccionada visible en el resultado
 - **MicroVault como único backend de credenciales** para el enriquecimiento normal; se requiere el perfil `mexicosint`
-- **Modelo Mexico-first (v2.8.0)**: IFT/PNN es la fuente primaria para bloques de numeración mexicanos; Abstract, NumVerify e IPQualityScore se muestran como corroboración secundaria y no reemplazan los datos oficiales
+- **Modelo Mexico-first (v2.8.0)**: IFT/PNN es la fuente primaria para bloques de numeración mexicanos; Abstract, NumVerify, IPQualityScore y Verificar Emails (HLR) se muestran como corroboración secundaria y no reemplazan los datos oficiales
 - **Matriz de confianza**: el reporte identifica qué campos provienen de IFT/PNN y cuáles son señales secundarias
 - **Rendimiento concurrente (v2.5.3)**: llamadas a APIs en paralelo (asyncio + aiohttp), pooling de conexiones HTTPS y memoización de normalización y geocodificación
 - Soporte para reportes o salidas generadas según la versión
@@ -68,7 +68,11 @@ MeXiCOSINT/
 │   ├── INSTALL.md
 │   ├── USAGE.md
 │   ├── CONFIG.md
-│   ├── ENGLISH.md
+│   ├── en/
+│   │   ├── README.md
+│   │   ├── INSTALL.md
+│   │   ├── USAGE.md
+│   │   └── CONFIG.md
 │   └── index.html
 ├── src/
 │   └── mexicosint/
@@ -78,6 +82,7 @@ MeXiCOSINT/
 │       ├── config.py
 │       ├── evidence.py
 │       ├── locality.py
+│       ├── history.py
 │       ├── main.py
 │       ├── microvault_bridge.py
 │       ├── numbering.py
@@ -103,7 +108,8 @@ MeXiCOSINT/
 │       │   ├── nominatim.py
 │       │   ├── numverify.py
 │       │   ├── opencage.py
-│       │   └── status.py
+│       │   ├── status.py
+│       │   └── verificaremails.py
 │       └── services/
 │           └── scanner.py
 ├── tools/
@@ -215,7 +221,7 @@ La única fuente es el perfil `mexicosint`; `--microvault` fuerza la conexión.
 | [Guía de instalación](docs/INSTALL.md) | Instrucciones de instalación para Kali, Debian, Ubuntu y sistemas similares |
 | [Guía de uso](docs/USAGE.md) | Uso completo: opciones, ejemplos, base IFT, API keys |
 | [Guía de configuración](docs/CONFIG.md) | Configuración local y manejo de API keys |
-| [Documentación en inglés](docs/ENGLISH.md) | Documentación completa en inglés |
+| [English documentation](docs/en/README.md) | Full documentation in English (mirrors this guide + docs/INSTALL.md, docs/USAGE.md, docs/CONFIG.md) |
 
 ---
 
@@ -230,6 +236,7 @@ Algunas funciones pueden depender de API keys externas.
 | OpenCage | Geocodificación primaria opcional de localidad IFT/LADA |
 | Geoapify | Geocodificación fallback opcional de localidad IFT/LADA |
 | IPQualityScore | Validación, reputación y abuso telefónico como evidencia de apoyo |
+| Verificar Emails | Validación HLR telefónica secundaria y opcional; corrobora sin sustituir IFT/PNN |
 
 Formatos aceptados: `+526634647308`, `526634647308`, `6634647308`, `+52 663 464 7308`, `52-663-464-7308`, `(663) 464-7308`.
 
@@ -297,6 +304,7 @@ microvault add opencage_api
 microvault add ipgs
 microvault add numverify_api
 microvault add abstract_api
+microvault add verificaremails
 ```
 
 `microvault add <nombre>` pide la key con un prompt oculto — nunca se escribe en la misma línea, nunca queda en tu historial de shell.
@@ -335,6 +343,7 @@ Si MicroVault necesita abrir su prompt pero MeXiCOSINT se ejecuta desde una term
 | `ipgs` | Reputación y abuso telefónico |
 | `numverify_api` | Validación secundaria |
 | `abstract_api` | Enriquecimiento telefónico |
+| `verificaremails` | Validación HLR secundaria y opcional |
 
 Si tu bóveda usa otros nombres, puedes ajustarlos en `src/mexicosint/config.py` (variable `MICROVAULT_SERVICES`) o crear un alias en MicroVault con el comando `microvault alias`.
 

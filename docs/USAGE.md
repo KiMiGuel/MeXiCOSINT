@@ -8,7 +8,7 @@ mexicosint +525512345678
 mexicosint "52-663-464-7308"
 ```
 
-Los números送上 se normalizan y validan; los proveedores opcionales se
+Los números se normalizan y validan; los proveedores opcionales se
 consultan solo cuando el perfil MicroVault `mexicosint` aporta su credencial.
 
 ## Opciones
@@ -33,7 +33,7 @@ configuración se hace en MicroVault.
 ## Configuración de credenciales
 
 ```bash
-microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api
+microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api verificaremails
 ```
 
 El bridge consulta una sola vez:
