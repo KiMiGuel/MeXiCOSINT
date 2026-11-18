@@ -224,6 +224,11 @@ mexicosint 5512345678</pre>
         <p>Reporte JSON con hash SHA-256 y mapa HTML de la localidad canónica IFT/LADA. Listo para documentar investigaciones.</p>
       </div>
       <div class="card">
+        <img class="feature-icon" src="icons/report.svg" alt="Icono de modo batch e historial">
+        <h3>Modo batch e historial</h3>
+        <p>Escanea varios números a la vez con manifiesto JSON y resumen CSV. Cada escaneo queda en <code>output/history.jsonl</code> y se compara con <code>--diff ANTES DESPUÉS</code>.</p>
+      </div>
+      <div class="card">
         <img class="feature-icon" src="icons/speed.svg" alt="Icono de rendimiento concurrente">
         <h3>Rápida y concurrente</h3>
         <p>Desde v2.5.3: llamadas a APIs en paralelo con asyncio + aiohttp, reutilización de conexiones HTTPS y caché de geocodificación. Escaneos mucho más rápidos con varias llaves activas.</p>
@@ -343,7 +348,7 @@ mexicosint 5512345678</pre>
         <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
       </ol>
       <div class="cmd"><span class="c"># guardar la llave una sola vez</span>
-microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
+microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs verificaremails</div>
       <p>Listo. A partir de ese momento, cada escaneo incluye la evidencia de AbstractAPI cuando el proveedor responda.</p>
       <a class="signup" href="https://app.abstractapi.com/users/signup?target=/api/phone-validation/pricing/select">Crear cuenta gratis en AbstractAPI</a>
     </div>
@@ -369,7 +374,7 @@ microvault profile mexicosint abstract_api numverify_api opencage_api geoapify i
         <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
       </ol>
       <div class="cmd"><span class="c"># guardar la llave una sola vez</span>
-microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
+microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs verificaremails</div>
       <p>Listo. NumVerify se usará automáticamente cuando su key exista.</p>
       <a class="signup" href="https://numverify.com/signup/free/monthly">Crear cuenta gratis en NumVerify</a>
     </div>
@@ -385,7 +390,7 @@ microvault profile mexicosint abstract_api numverify_api opencage_api geoapify i
       </div>
       <p><b>Qué hace:</b> geocodifica la consulta canónica IFT/LADA con formato <code>ciudad, estado, Mexico</code>.</p>
       <p><b>Importante:</b> solo se geocodifican localidades concretas. Valores vagos como país, región o etiquetas genéricas se omiten.</p>
-      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
+      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs verificaremails</div>
     </div>
 
     <div class="api">
@@ -406,7 +411,7 @@ microvault profile mexicosint abstract_api numverify_api opencage_api geoapify i
         <li>Copia la API key del proyecto.</li>
         <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
       </ol>
-      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
+      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs verificaremails</div>
       <a class="signup" href="https://myprojects.geoapify.com/register">Crear cuenta en Geoapify</a>
     </div>
 
@@ -429,8 +434,27 @@ microvault profile mexicosint abstract_api numverify_api opencage_api geoapify i
         <li>Localiza y copia la API key privada.</li>
         <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
       </ol>
-      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs</div>
+      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs verificaremails</div>
       <a class="signup" href="https://www.ipqualityscore.com/create-account">Registrarse en IPQualityScore</a>
+    </div>
+
+    <div class="api">
+      <div class="api-head">
+        <h3>Verificar Emails — Validación HLR</h3>
+        <span class="pill">HLR</span>
+        <span class="pill">SECUNDARIA</span>
+        <span class="pill">OPCIONAL</span>
+      </div>
+      <p><b>Qué hace:</b> consulta HLR en vivo: si el número es alcanzable, su operadora actual y la operadora original — detecta portabilidad (MNP). Un resultado vacío se clasifica como <code>no_result</code>, nunca como error.</p>
+      <p><b>Cómo se integra:</b> evidencia secundaria y opcional; no reemplaza la fuente oficial IFT/LADA. Los créditos son limitados — actívala solo cuando la necesites.</p>
+      <p><b>Guía de registro</b>:</p>
+      <ol>
+        <li>Abre el panel de Verificar Emails y crea una cuenta.</li>
+        <li>Copia tu API key del panel.</li>
+        <li>Usa el perfil aislado de MeXiCOSINT en MicroVault:</li>
+      </ol>
+      <div class="cmd">microvault profile mexicosint abstract_api numverify_api opencage_api geoapify ipgs verificaremails</div>
+      <a class="signup" href="https://dashboard.verificaremails.com/">Crear cuenta en Verificar Emails</a>
     </div>
   </div>
 </section>
@@ -444,7 +468,7 @@ microvault profile mexicosint abstract_api numverify_api opencage_api geoapify i
       <div class="step">
         <div class="n">A</div>
         <h3>Crear el perfil aislado</h3>
-        <p><code>microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api</code><br>El bridge lo consulta estrictamente una vez por ejecución.</p>
+        <p><code>microvault profile mexicosint geoapify opencage_api ipgs numverify_api abstract_api verificaremails</code><br>El bridge lo consulta estrictamente una vez por ejecución.</p>
       </div>
       <div class="step">
         <div class="n">B</div>
