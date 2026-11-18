@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MeXicOSINT v2.10.0
+MeXicOSINT v2.11.0
 Herramienta de OSINT para numeros telefonicos Mexicanos
 Autor: KiMiGuEL
+
+Cambios v2.11.0:
+  - Nuevo proveedor Verificar Emails (HLR): alcanzable, operadora actual/original
+  - Resultado vacio de Verificar Emails se clasifica como no_result, no como error
+  - Documentacion en ingles separada en docs/en/, tablas de proveedores sincronizadas
 
 Cambios v2.10.0:
   - Batch exporta manifest JSON y resumen CSV
